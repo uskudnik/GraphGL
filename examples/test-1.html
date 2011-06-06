@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+	<title>foo-1</title>
+	<script type="text/javascript" charset="utf-8" src="jquery-1.6.1.js"></script>
+	<script type="text/javascript" charset="utf-8" src="../three.js/build/Three.js"></script>
+	
+	<script type="text/javascript" charset="utf-8" src="../GraphGL.js"></script>
+
+
+<script id="vertexShader" type="x-shader/x-vertex" charset="utf-8">
+#ifdef GL_ES
+precision highp float;
+#endif
+
+void main() {
+gl_Position = 	projectionMatrix *
+				modelViewMatrix *
+				vec4(position,1.0);
+}
+</script>
+<script id="fragmentShader" type="x-shader/x-fragment" charset="utf-8">
+#ifdef GL_ES
+precision highp float;
+#endif
+
+void main() {
+	gl_FragColor = vec4(0, 1.0, 1.0, 1.0);
+}
+</script>
+<style>
+		#canvas {
+			background: #000;
+			width: 500px;
+			height: 500px;
+			position:absolute;
+			left:56px;
+			top:30px;
+		}
+
+</style>
+
+<script type="text/javascript" charset="utf-8">
+$(document).ready(function(){
+	var canvas = $("#canvas");
+	
+	var start = Date.now(); 
+	var data = [];
+	var width = 500, height = 500;
+	var numnodes = 100;
+	for (var i=0; i<numnodes; i++) {
+		var x = Math.random() * width - width/2, y = Math.random() * height - height/2;
+		data.push([x, y]);
+	}
+	var enddatagen = Date.now();
+	options = {
+		canvas: canvas,
+		width: width,
+		height: height
+	};
+	var lib = new GraphGL(data, options);
+	lib.init();
+	var endall = Date.now();
+	
+	console.log("datagen: ", (enddatagen-start)/1000);
+	console.log("all: ", (endall-start)/1000);
+});
+</script>
+</head>
+
+<body>
+<div id="canvas"></div>
+</body>
+</html>

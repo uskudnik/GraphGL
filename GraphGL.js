@@ -108,13 +108,11 @@ function GraphGL(data, options) {
 		$(this.renderer.domElement).offset().top+this.options.height/2);
 
 	$(this.renderer.domElement).bind("mousewheel DOMMouseScroll",
-		function(ev){
+		function(ev){						
 			var difZ;
+			
 			if (ev.DOMMouseScroll) difZ = ev.detail;
 			else difZ = ev.wheelDelta;
-			
-			// console.log(ev.pageX, ev.offsetX);
-			//dx = that.events.mouse.x - $(this).offset().left;
 			
 			// console.log(that.events.mouse_position.x, that.events.mouse_position.y);
 			var r = new THREE.Vector2();
@@ -125,6 +123,7 @@ function GraphGL(data, options) {
 			that.camera.translateY(-(difZ / that.camera.position.z)*r.y);
 			
 			that.camera.position.z = that.camera.position.z - difZ;
+			
 			that.renderer.render(that.scene, that.camera);
 	});
 	
