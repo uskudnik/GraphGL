@@ -6,15 +6,18 @@ var VIEW_ANGLE = 45,
 	NEAR = 0.1,
 	FAR = 10000;
 
-function GraphGL(data, options) {
+function GraphGL(options) {
 	var that = this; // needed due to a couple of clousers
-	
+		
 	this.options = {
 		// defaults
 	}
 	// merge defaults and passed in options; later
 	
-	this.data = data;
+	// this.data = data;
+	
+	// this.graph = new Object();
+	
 	this.options = options;
 	this.events = {};
 	
@@ -28,8 +31,7 @@ function GraphGL(data, options) {
 		VIEW_ANGLE,
 		ASPECT,
 		NEAR,
-		FAR
-		);
+		FAR);
 	
 	this.scene = new THREE.Scene();
 	
@@ -37,25 +39,10 @@ function GraphGL(data, options) {
 	this.camera.position.z = 500;
 
 	this.renderer.setSize(this.options.width, this.options.height);
-	
-	
-	// var ifr = $("iframe");
-	// var ifr = $("<iframe ></iframe>");
-	// this.options.canvas.replaceWith(ifr);
-	// console.log(ifr.contents().find("body"));
-	// ifr.load(function(){
-	// 	ifr.contents().find("head").append("<style>body {margin:0; padding:0;}</style>")
-	// 	ifr.contents().find("body").append("<strong>olalala</strong>");
-	// 	// that.options.canvas
-	// 	console.log(ifr.contents());
-	// 	console.log(ifr.contentWindow.document);
-	// 	// ifr.contents().scroll(function(ev){
-	// 	// 			// if (that.events.mouseover)
-	// 	// 			console.log("skrul");
-	// 	// 		});
-	// });
 		
 	this.options.canvas.append(this.renderer.domElement);
+	
+	// Events
 	this.events.mouse = {}; 	
 	$(this.renderer.domElement).mousedown(function(ev){
 		that.events.mouse.down = true;
@@ -111,7 +98,7 @@ function GraphGL(data, options) {
 		function(ev){						
 			var difZ;
 			
-			if (ev.DOMMouseScroll) difZ = ev.detail;
+			if (ev.DOMMouseScroll) difZ = ev.detail; // Firefox
 			else difZ = ev.wheelDelta;
 			
 			// console.log(that.events.mouse_position.x, that.events.mouse_position.y);
@@ -134,9 +121,35 @@ function GraphGL(data, options) {
 	
 	this.scene.addLight(this.pointLight);
 	
-	for (var i=0; i<this.data.length; i++ ) {
-		this.node(5, this.data[i][0], this.data[i][1]);
-	}
+	// for (var i=0; i<this.data.length; i++ ) {
+	// 	this.node(5, this.data[i][0], this.data[i][1]);
+	// }
+	
+	this.renderer.render(this.scene, this.camera);
+}
+
+GraphGL.prototype.Graph = new Object();
+GraphGL.prototype.Graph.nodes = new Object();
+GraphGL.prototype.Graph.add_node = function(id, label) {
+	// this = GraphGL.Graph !!!
+	this.nodes[id.toString()] = [label];
+}
+
+
+GraphGL.prototype.import_gexf = function(data) {
+	var that = this;
+	var gexf;
+	console.log("gexf");
+	
+	gexf = $(data);
+	// console.log(that.Graph);
+	gexf.find("node").each(function(i, node){
+		var node = $(node);
+		that.Graph.add_node(node.attr("id"), node.attr("label"));
+	});
+	console.log(that.Graph);
+	
+	// gexd.find("edge")
 }
 
 GraphGL.prototype.node = function(radius, x, y) {
@@ -157,7 +170,12 @@ GraphGL.prototype.node = function(radius, x, y) {
 	
 	this.scene.addChild(sphere);
 }
-GraphGL.prototype.init = function() {
+GraphGL.prototype.init = function(data, dataType) {
 	console.log("init");
-	this.renderer.render(this.scene, this.camera);
-}
+
+	if (dataType == "gexf") this.import_gexf(data);
+	
+	
+	
+	// this.renderer.render(this.scene, this.camera);
+	}
