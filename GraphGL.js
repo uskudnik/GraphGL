@@ -16,7 +16,7 @@ function GraphGL(options) {
 	
 	// this.data = data;
 	
-	// this.graph = new Object();
+	this.graph;
 	
 	this.options = options;
 	this.events = {};
@@ -128,28 +128,44 @@ function GraphGL(options) {
 	this.renderer.render(this.scene, this.camera);
 }
 
-GraphGL.prototype.Graph = new Object();
-GraphGL.prototype.Graph.nodes = new Object();
-GraphGL.prototype.Graph.add_node = function(id, label) {
-	// this = GraphGL.Graph !!!
-	this.nodes[id.toString()] = [label];
-}
+function Graph() {}
+Graph.prototype.nodes = new Object();
+Graph.prototype.edges = new Object();
 
 
-GraphGL.prototype.import_gexf = function(data) {
+function import_gexf(data) {
 	var that = this;
 	var gexf;
 	console.log("gexf");
 	
+	var graph = new Graph();
+	
 	gexf = $(data);
+	
+	// Will need to be recursive
 	// console.log(that.Graph);
 	gexf.find("node").each(function(i, node){
 		var node = $(node);
-		that.Graph.add_node(node.attr("id"), node.attr("label"));
+		// Should enable arbitrary node data with only x, y being mandatory
+		graph.nodes[node.attr("id")] = {
+			label: node.attr("label"),
+			x: 0,
+			y: 0
+		}
 	});
-	console.log(that.Graph);
+	// console.log(this.Graph);
 	
-	// gexd.find("edge")
+	gexf.find("edge").each(function(i, edge){
+		// console.log(edge);
+		var edge = $(edge);
+		graph.edges[edge.attr("id")] = {
+			source: edge.attr("source"),
+			target: edge.attr("target")
+		}
+	});
+	
+	return graph;
+	// console.log(this.Graph);
 }
 
 GraphGL.prototype.node = function(radius, x, y) {
@@ -170,12 +186,40 @@ GraphGL.prototype.node = function(radius, x, y) {
 	
 	this.scene.addChild(sphere);
 }
-GraphGL.prototype.init = function(data, dataType) {
-	console.log("init");
 
-	if (dataType == "gexf") this.import_gexf(data);
+
+
+GraphGL.prototype.render = function(layout) {
+	// This can be put to webworkers...
+	// layout.call(this);
 	
+	return this;
+}
+
+GraphGL.prototype.init = function(data, importer) {
+	// This can be put off to webworkers...
+	var that = this;
 	
+	this.graph = importer(data);
+	this.layout_worker = new Worker(this.options.layout);
+	console.log("sending: ", this.graph);
+	this.layout_worker.postMessage({
+		options: {
+			// options, by default, also includes a canvas, which prevents copying
+			width: this.options.width,
+			height: this.options.height
+		},
+		nodes: this.graph.nodes,
+		edges: this.graph.edges
+	});
 	
-	// this.renderer.render(this.scene, this.camera);
+	this.layout_worker.onmessage = function(msg) {
+		console.log("ggl init", msg.data);
+		that.graph.nodes = msg.data.nodes;
+		that.graph.edges = msg.data.edges;
+		// console.log(that);
+		that.render();
 	}
+	
+	return this;
+}

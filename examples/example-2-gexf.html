@@ -51,22 +51,29 @@ $(document).ready(function(){
 	var width = 500, height = 500;
 	
 	var url = "hello-world.gexf.xml";
+	var layout = "force_directed.js";
 	
 	var gexfdata;
 	var options = {
 		canvas: canvas,
 		width: width,
-		height: height
+		height: height,
+		layout: layout
 	};
 	
 	
 	var graphgl = new GraphGL(options);
+	// should go to web workers....
+	
+	// var import_worker = new Worker("data_loader");
+	
 	$.get(
 			url, 
 			function(data) {
 				gexfdata = data;
 				// console.log(gexfdata);
-				graphgl.init(gexfdata, "gexf");
+				graphgl.init(gexfdata, import_gexf);
+				//.render(force_layout);
 	}).error(function(e) { console.log("error - ", e); });
 	
 	var endall = Date.now();
