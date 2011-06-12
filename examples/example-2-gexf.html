@@ -51,6 +51,7 @@ $(document).ready(function(){
 	var width = 500, height = 500;
 	
 	var url = "hello-world.gexf.xml";
+	// var url = "file:///Users/urbanskudnik/Dev/GraphGL/examples/example-2-gexf.html";
 	var layout = "force_directed.js";
 	
 	var gexfdata;
@@ -58,14 +59,36 @@ $(document).ready(function(){
 		canvas: canvas,
 		width: width,
 		height: height,
-		layout: layout
+		layout: layout,
+		layoutSend: function() {
+			var worker_data = {
+				options: {
+					// options, by default, also includes a canvas, which prevents copying
+					width: this.options.width,
+					height: this.options.height
+				},
+				nodes: this.graph.nodes,
+				edges: this.graph.edges
+			};
+			
+			return worker_data;
+		},
+		layoutUpdate: function(data) {
+			console.log("ggl init", data);
+
+			// return;
+			for (var nindex in data.nodes) {
+				this.graph.nodes[nindex].x = data.nodes[nindex].x;
+				this.graph.nodes[nindex].y = data.nodes[nindex].y; 
+			}
+
+			console.log(this.graph);
+		}
 	};
 	
 	
 	var graphgl = new GraphGL(options);
 	// should go to web workers....
-	
-	// var import_worker = new Worker("data_loader");
 	
 	$.get(
 			url, 
@@ -73,7 +96,11 @@ $(document).ready(function(){
 				gexfdata = data;
 				// console.log(gexfdata);
 				graphgl.init(gexfdata, import_gexf);
+				
+				
 				//.render(force_layout);
+				
+				
 	}).error(function(e) { console.log("error - ", e); });
 	
 	var endall = Date.now();

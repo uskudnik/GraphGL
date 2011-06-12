@@ -17,6 +17,7 @@ function GraphGL(options) {
 	// this.data = data;
 	
 	this.graph;
+	this.layout_worker;
 	
 	this.options = options;
 	this.events = {};
@@ -142,6 +143,7 @@ function import_gexf(data) {
 	
 	gexf = $(data);
 	
+	
 	// Will need to be recursive
 	// console.log(that.Graph);
 	gexf.find("node").each(function(i, node){
@@ -164,8 +166,8 @@ function import_gexf(data) {
 		}
 	});
 	
-	return graph;
 	// console.log(this.Graph);
+	return graph;
 }
 
 GraphGL.prototype.node = function(radius, x, y) {
@@ -202,24 +204,12 @@ GraphGL.prototype.init = function(data, importer) {
 	
 	this.graph = importer(data);
 	this.layout_worker = new Worker(this.options.layout);
-	console.log("sending: ", this.graph);
-	this.layout_worker.postMessage({
-		options: {
-			// options, by default, also includes a canvas, which prevents copying
-			width: this.options.width,
-			height: this.options.height
-		},
-		nodes: this.graph.nodes,
-		edges: this.graph.edges
-	});
-	
+	this.layout_worker.postMessage(function() {
+		return that.options.layoutSend.call(that);
+	}());
 	this.layout_worker.onmessage = function(msg) {
-		console.log("ggl init", msg.data);
-		that.graph.nodes = msg.data.nodes;
-		that.graph.edges = msg.data.edges;
-		// console.log(that);
-		that.render();
-	}
-	
+		that.options.layoutUpdate.call(that, msg.data);
+	};
+
 	return this;
 }

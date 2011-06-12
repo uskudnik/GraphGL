@@ -1,36 +1,38 @@
-var opt, graph;
+// Kind-of middleware file for interfacing with springy
 
-function force_layout() {
-	// console.log("force layout", this);
+importScripts("../springy/springy.js");
+
+var opt, graph, layout;
+
+graph = new Graph();
+
+function onmessage(msg) {	
+	opt = msg.data.options;
+	var nodes = msg.data.nodes;
+	var edges = msg.data.edges;
 	
-	var width = opt.width, height = opt.height;
-	var nodes = graph.nodes;
-	var edges = graph.edges;
-	
-	// TODO: make sure no two nodes are at identical positions
-	// Position nodes at random positions
-	for each(var node in nodes) {
-		node.x = Math.random() * width - width/2;
-		node.y = Math.random() * height - height/2;
+	for (var nindex in nodes) {
+		var node = graph.newNode({label: nodes[nindex].label});
 	}
 	
-	postMessage({
-		nodes: nodes,
-		edges: edges
-	})
+	for (var eindex in edges) {
+		var e = edges[eindex];
+		graph.newEdge(graph.nodeSet[e.source], graph.nodeSet[e.target]); // works magikally because all object properties are strings?
+	}
 	
-	// console.log(this);
-	// return this;
-}
-
-function onmessage(msg) {
-	// console.log("w0k w0k", msg);
-	// postMessage("forze wiwf az");
-	// postMessage(msg.data);
-	opt = msg.data.options;
-	graph = {
-		nodes: msg.data.nodes,
-		edges: msg.data.edges
-	};
-	force_layout();
+	layout = new Layout.ForceDirected(graph, 400.0, 400.0, 0.5);
+	
+	layout.start(2000, function(){
+		var g = {};
+		g.bounding_box = layout.getBoundingBox();
+		g.nodes = {};
+		layout.eachNode(function(node, point){
+			g.nodes[node.id] = {
+				x: point.p.x,
+				y: point.p.y
+			}
+		});
+		
+		postMessage(g);
+	});
 }
