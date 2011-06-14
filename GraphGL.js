@@ -52,7 +52,8 @@ function GraphGL(options) {
 	this.scene = new THREE.Scene();
 	
 	// maybe camera should stay at 0, 0, 0 and object go away? or not - we won't need z coordinate anyway?
-	this.camera.position.z = 1000;
+	// console.log("Z COORD: ", this.options.width / Math.tan(VIEW_ANGLE * Math.PI/180));
+	this.camera.position.z = this.options.width / Math.tan(VIEW_ANGLE * Math.PI/180);
 
 	this.renderer.setSize(this.options.width, this.options.height);
 		
