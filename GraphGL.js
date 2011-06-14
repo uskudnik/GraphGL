@@ -152,23 +152,23 @@ Graph.prototype.node = function(data) {
 	// EXTREMELY __NOT__ OPTIMIZED
 	// step one - square
 	// step two - square with gpu rendering
-	var radius = 20, segmants = 16, rings = 16;
-	
-	var sphereMaterial = new THREE.MeshLambertMaterial({
-		color: 0xCC0000
-	});
-	
-	var node = new THREE.Mesh (
-		new THREE.Sphere(radius, segmants, rings), sphereMaterial);
+	// var radius = 20, segmants = 16, rings = 16;
+	// 
+	// var sphereMaterial = new THREE.MeshLambertMaterial({
+	// 	color: 0xCC0000
+	// });
+	// 
+	// var node = new THREE.Mesh (
+	// 	new THREE.Sphere(radius, segmants, rings), sphereMaterial);
 	
 	// no need to do it all the time? clone?
-	// var node = new THREE.Mesh (
-	// 	new THREE.Plane(10, 10, 10, 10),
-	// 	new THREE.MeshShaderMaterial({
-	// 		vertexShader: $("#vertexShader").text(),
-	// 		fragmentShader: $("#fragmentShader").text()
-	// 	})
-	// );
+	var node = new THREE.Mesh (
+		new THREE.Plane(10, 10, 10, 10),
+		new THREE.MeshShaderMaterial({
+			vertexShader: $("#vertexShader").text(),
+			fragmentShader: $("#fragmentShader").text()
+		})
+	);
 	
 	
 	node.position.x = 0;
