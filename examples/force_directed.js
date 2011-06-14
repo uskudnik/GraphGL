@@ -23,7 +23,7 @@ function onmessage(msg) {
 	
 	layout = new Layout.ForceDirected(graph, 400.0, 400.0, 0.5);
 	
-	layout.start(1000, function(){
+	layout.start(100, function(){
 		var g = {};
 		g.bounding_box = layout.getBoundingBox();
 		g.nodes = {};
@@ -35,7 +35,7 @@ function onmessage(msg) {
 		});
 		i++;
 		postMessage(g);
-		if (i > 30) close();
+		// if (i > 5) close();
 	}, function() {
 		close();
 	});

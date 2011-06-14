@@ -63,35 +63,67 @@ $(document).ready(function(){
 		height: height,
 		layout: layout,
 		layoutSend: function() {
+			// var worker_data = {
+			// 	options: {
+			// 		// options, by default, also includes a canvas, which prevents copying
+			// 		width: this.options.width,
+			// 		height: this.options.height
+			// 	},
+			// 	nodes: this.graph.nodes,
+			// 	edges: this.graph.edges
+			// };
+			
 			var worker_data = {
 				options: {
-					// options, by default, also includes a canvas, which prevents copying
 					width: this.options.width,
 					height: this.options.height
-				},
-				nodes: this.graph.nodes,
-				edges: this.graph.edges
+				}
 			};
+			
+			var gnodes = this.graph.nodes;
+			var gedges = this.graph.edges;
+			
+			worker_data.nodes = {};
+			worker_data.edges = {};
+			for (var ni in gnodes) {
+				worker_data.nodes[ni] = gnodes[ni].data;
+			}
+			
+			for (var ei in gedges) {
+				worker_data.edges[ei] = gedges[ei].data;
+			}
+			
+			console.log("worker data: ", worker_data);
 			return worker_data;
 		},
 		layoutUpdate: function(data) {
 			console.log("ggl init", data);
 
-			this.graph.bounding_box = data.bounding_box;
+			mx = this.options.width - 100;
+			my = this.options.height - 100;
+
+			var bb = data.bounding_box;
 			for (var nindex in data.nodes) {
-				this.graph.nodes[nindex].x = data.nodes[nindex].x;
-				this.graph.nodes[nindex].y = data.nodes[nindex].y; 
+				node = data.nodes[nindex];
+				
+				var x = (node.x)/(bb.topright.x-bb.bottomleft.x)*mx;
+				var y = (node.y)/(bb.topright.y-bb.bottomleft.y)*my;
+				
+				this.graph.nodes[nindex].data.x = x;
+				this.graph.nodes[nindex].data.y = y; 
 			}
+			
+			this.graph.updated = true;
 
 			console.log(ni++, this.graph);
-			this.render();
+			// 
 		}
 	};
 	
 	
 	var graphgl = new GraphGL(options);
-	// should go to web workers....
 	
+	// should go to web workers? or maybe not...
 	$.get(
 			url, 
 			function(data) {

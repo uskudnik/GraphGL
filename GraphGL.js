@@ -6,6 +6,19 @@
 // 	NEAR = 0.1,
 // 	FAR = 10000;
 
+// @see http://paulirish.com/2011/requestanimationframe-for-smart-animating/
+window.requestAnimFrame = (function(){
+  return  window.requestAnimationFrame       || 
+          window.webkitRequestAnimationFrame || 
+          window.mozRequestAnimationFrame    || 
+          window.oRequestAnimationFrame      || 
+          window.msRequestAnimationFrame     || 
+          function(/* function */ callback, /* DOMElement */ element){
+            window.setTimeout(callback, 1000 / 60);
+          };
+})();
+
+
 function GraphGL(options) {
 	var that = this; // needed due to a couple of clousers
 		
@@ -21,6 +34,8 @@ function GraphGL(options) {
 	
 	this.options = options;
 	this.events = {};
+	
+	this.updates_started = false;
 	
 	var VIEW_ANGLE = 45,
 		ASPECT = this.options.width / this.options.height,
@@ -126,10 +141,65 @@ function GraphGL(options) {
 }
 
 function Graph() {}
-Graph.prototype.nodes = new Object();
-Graph.prototype.edges = new Object();
-Graph.prototype.gl_nodes = {};
-Graph.prototype.gl_edges = {};
+Graph.prototype.nodes = {};
+Graph.prototype.edges = {};
+// Graph.prototype.gl_nodes = {};
+// Graph.prototype.gl_edges = {};
+
+Graph.prototype.node = function(data) {
+	// need to be data, not just for label!
+	
+	// EXTREMELY __NOT__ OPTIMIZED
+	// step one - square
+	// step two - square with gpu rendering
+	var radius = 20, segmants = 16, rings = 16;
+	
+	var sphereMaterial = new THREE.MeshLambertMaterial({
+		color: 0xCC0000
+	});
+	
+	var node = new THREE.Mesh (
+		new THREE.Sphere(radius, segmants, rings), sphereMaterial);
+	
+	// no need to do it all the time? clone?
+	// var node = new THREE.Mesh (
+	// 	new THREE.Plane(10, 10, 10, 10),
+	// 	new THREE.MeshShaderMaterial({
+	// 		vertexShader: $("#vertexShader").text(),
+	// 		fragmentShader: $("#fragmentShader").text()
+	// 	})
+	// );
+	
+	
+	node.position.x = 0;
+	node.position.y = 0;
+	
+	this.scene.addChild(node);
+	node.data = {};
+	node.data = data;
+	
+	return node;
+};
+
+Graph.prototype.edge = function(node1, node2) {
+	var lineMat = new THREE.LineBasicMaterial( { color: 0xff0000, opacity: 0.7, linewidth: 1} );
+	
+	var geom = new THREE.Geometry();
+	geom.vertices.push(new THREE.Vertex(node1.position));
+	geom.vertices.push(new THREE.Vertex(node2.position));
+
+	
+	var line = new THREE.Line(geom, lineMat);
+	this.scene.addObject( line );
+	
+	line.data = {
+		source: node1.data.id,
+		target: node2.data.id
+	};
+	
+	// console.log(line);
+	return line; 
+}
 
 
 function import_gexf(data) {
@@ -146,128 +216,69 @@ function import_gexf(data) {
 	// console.log(that.Graph);
 	gexf.find("node").each(function(i, node){
 		var node = $(node);
-		// Should enable arbitrary node data with only x, y being mandatory
-		graph.nodes[node.attr("id")] = {
-			label: node.attr("label"),
-			x: 0,
-			y: 0
-		}
 		
-		graph.gl_nodes[node.attr("id")] = that.node(10);
+		// console.log(node);
+		graph.nodes[node.attr("id")] = graph.node.call(that, {
+				id: node.attr("id"),
+				label: node.attr("label")
+			}); // should be more robust?
 	});
-	// console.log(this.Graph);
 	
 	gexf.find("edge").each(function(i, edge){
 		// console.log(edge);
 		var edge = $(edge);
-		graph.edges[edge.attr("id")] = {
-			source: edge.attr("source"),
-			target: edge.attr("target")
-		}
 		
-		graph.gl_edges[edge.attr("id")] = that.edge(
-				graph.gl_nodes[edge.attr("source")],
-				graph.gl_nodes[edge.attr("target")]
-			)
+		graph.edges[edge.attr("id")] = graph.edge.call(that,
+			graph.nodes[edge.attr("source")],
+			graph.nodes[edge.attr("target")]
+		);
 	});	
-	// console.log("IMPORTED: ", graph);
+	console.log("GENERATED GRAPH: ", graph);
 	return graph;
 }
 
-GraphGL.prototype.node = function(radius) {
-	// EXTREMELY __NOT__ OPTIMIZED
-	// step one - circle
-	// step two - square with gpu rendering
-	var segmants = 16, rings = 16;
-	
-	var sphereMaterial = new THREE.MeshLambertMaterial({
-		color: 0xCC0000
-	});
-	
-	var sphere = new THREE.Mesh (
-		new THREE.Sphere(radius, segmants, rings), sphereMaterial);
-	
-	sphere.position.x = 0;
-	sphere.position.y = 0;
-	
-	this.scene.addChild(sphere);
-	
-	return sphere;
-}
-
-GraphGL.prototype.edge = function(node1, node2) {
-	var lineMat = new THREE.LineBasicMaterial( { color: 0xff0000, opacity: 1, linewidth: 3 } );
-	
-	var geom = new THREE.Geometry();
-	// geom.vertices.push( new THREE.Vertex( new THREE.Vector3(
-	// 	node1.position.x, 
-	// 	node1.position.y, 0
-	// ) ) );
-	geom.vertices.push (new THREE.Vertex(node1.position));
-	geom.vertices.push(new THREE.Vertex(node2.position));
-	// geom.vertices.push( new THREE.Vertex( new THREE.Vector3(
-	// 	node2.position.x,
-	// 	node2.position.y,
-	// 	0
-	// ) ) );
-	
-	var line = new THREE.Line(geom, lineMat);
-	this.scene.addObject( line );
-	return line; 
-}
 
 
-
-GraphGL.prototype.render = function() {
-	mx = this.options.width - 100;
-	my = this.options.height - 100;
-	var node;
-	var bb = this.graph.bounding_box;
+GraphGL.prototype.update = function() {
+	console.log("running update");
+	
+	if (!this.graph.updated) {
+		requestAnimFrame(this.update());
+		return;
+	}
+	
+	// mx = this.options.width - 100;
+	// my = this.options.height - 100;
+	// var node;
+	
+	// var bb = this.graph.bounding_box;
+	// console.log(this.graph.bounding_box);
 	// console.log("=== BB ===");
 	// console.log(bb.bottomleft.x, bb.topright.x);
 	// console.log(bb.bottomleft.y, bb.topright.y);
 	// console.log("=== === ===");
-	for (var nindex in this.graph.nodes) {
-		var node = this.graph.nodes[nindex];
-		
-		var x = (node.x)/(bb.topright.x-bb.bottomleft.x)*mx;
-		var y = (node.y)/(bb.topright.y-bb.bottomleft.y)*my;
-		
-		// console.log("x: ", node.x, x);
-		// console.log("y: :", node.y, y);
-		// console.log("--- --- ---");
-		
-		this.graph.gl_nodes[nindex].position.x = x;
-		this.graph.gl_nodes[nindex].position.y = y;
-		
-		
+	for (var nindex in this.graph.nodes) {		
+		this.graph.nodes[nindex].position.x = this.graph.nodes[nindex].data.x;
+		this.graph.nodes[nindex].position.y = this.graph.nodes[nindex].data.y;
 	}
 	
 	for (var eindex in this.graph.edges) {
 		// console.log("EDGE: ", this.graph.edges[eindex]);
-		var src = this.graph.edges[eindex].source;
-		var trg = this.graph.edges[eindex].target;
-		//console.log(this.graph.gl_edges[eindex].geometry.vertices[0].position);
-	// console.log(this.graph.gl_edges[eindex].geometry.vertices[0].position);
-	// console.log("nodez: ", this.graph.gl_nodes[src].position, this.graph.gl_nodes[trg].position);
-
-	// this.graph.gl_edges[eindex].geometry.vertices[0].position = {
-	// 	x: Math.random()*200,
-	// 	y: Math.random()*200,
-	// 	z: 0
-	// }
+		var src = this.graph.edges[eindex].data.source;
+		var trg = this.graph.edges[eindex].data.target;
 		
-		this.graph.gl_edges[eindex].geometry.vertices[0].position = this.graph.gl_nodes[src].position;				
-		this.graph.gl_edges[eindex].geometry.vertices[1].position = this.graph.gl_nodes[trg].position;
+		// console.log("edge src, trg: ", src, trg);
+		this.graph.edges[eindex].geometry.vertices[0].position = this.graph.nodes[src].position;				
+		this.graph.edges[eindex].geometry.vertices[1].position = this.graph.nodes[trg].position;
 		
-		this.graph.gl_edges[eindex].geometry.__dirtyVertices = true;
+		this.graph.edges[eindex].geometry.__dirtyVertices = true;
 	}
-	
-	// console.log("edge loc", this.graph.gl_edges[4].geometry.vertices[0].position);
-	
+		
 	this.renderer.render(this.scene, this.camera);
 	
-	return this;
+	this.graph.updated = false;
+	// requestAnimFrame(this.update());
+	// return this;
 }
 
 GraphGL.prototype.init = function(data, importer) {
@@ -282,7 +293,16 @@ GraphGL.prototype.init = function(data, importer) {
 	// this.layout_worker.onmessage = this.options.layoutUpdate;
 	this.layout_worker.onmessage = function(msg) {
 		that.options.layoutUpdate.call(that, msg.data);
+		// if (!that.updates_started) {
+			// can probably be done in a smarter fashion?
+			that.update();
+			that.updates_started = true;
+		// }
 	};
 
 	return this;
 }
+
+// GraphGL.prototype.render = function() {
+// 	requestAnimFrame(this.update.call(this));
+// }
