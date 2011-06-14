@@ -3,6 +3,7 @@
 importScripts("../springy/springy.js");
 
 var opt, graph, layout;
+var i = 0;
 
 graph = new Graph();
 
@@ -22,7 +23,7 @@ function onmessage(msg) {
 	
 	layout = new Layout.ForceDirected(graph, 400.0, 400.0, 0.5);
 	
-	layout.start(2000, function(){
+	layout.start(1000, function(){
 		var g = {};
 		g.bounding_box = layout.getBoundingBox();
 		g.nodes = {};
@@ -32,7 +33,10 @@ function onmessage(msg) {
 				y: point.p.y
 			}
 		});
-		
+		i++;
 		postMessage(g);
+		if (i > 30) close();
+	}, function() {
+		close();
 	});
 }

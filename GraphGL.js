@@ -1,10 +1,10 @@
-var WIDTH = 400, 
-	HEIGHT = 300;
-	
-var VIEW_ANGLE = 45,
-	ASPECT = WIDTH/HEIGHT,
-	NEAR = 0.1,
-	FAR = 10000;
+// var WIDTH = 400, 
+// 	HEIGHT = 300;
+// 	
+// var VIEW_ANGLE = 45,
+// 	ASPECT = WIDTH/HEIGHT,
+// 	NEAR = 0.1,
+// 	FAR = 10000;
 
 function GraphGL(options) {
 	var that = this; // needed due to a couple of clousers
@@ -37,7 +37,7 @@ function GraphGL(options) {
 	this.scene = new THREE.Scene();
 	
 	// maybe camera should stay at 0, 0, 0 and object go away? or not - we won't need z coordinate anyway?
-	this.camera.position.z = 500;
+	this.camera.position.z = 1000;
 
 	this.renderer.setSize(this.options.width, this.options.height);
 		
@@ -122,16 +122,14 @@ function GraphGL(options) {
 	
 	this.scene.addLight(this.pointLight);
 	
-	// for (var i=0; i<this.data.length; i++ ) {
-	// 	this.node(5, this.data[i][0], this.data[i][1]);
-	// }
-	
 	this.renderer.render(this.scene, this.camera);
 }
 
 function Graph() {}
 Graph.prototype.nodes = new Object();
 Graph.prototype.edges = new Object();
+Graph.prototype.gl_nodes = {};
+Graph.prototype.gl_edges = {};
 
 
 function import_gexf(data) {
@@ -154,6 +152,8 @@ function import_gexf(data) {
 			x: 0,
 			y: 0
 		}
+		
+		graph.gl_nodes[node.attr("id")] = that.node(10);
 	});
 	// console.log(this.Graph);
 	
@@ -164,13 +164,17 @@ function import_gexf(data) {
 			source: edge.attr("source"),
 			target: edge.attr("target")
 		}
-	});
-	
-	// console.log(this.Graph);
+		
+		graph.gl_edges[edge.attr("id")] = that.edge(
+				graph.gl_nodes[edge.attr("source")],
+				graph.gl_nodes[edge.attr("target")]
+			)
+	});	
+	// console.log("IMPORTED: ", graph);
 	return graph;
 }
 
-GraphGL.prototype.node = function(radius, x, y) {
+GraphGL.prototype.node = function(radius) {
 	// EXTREMELY __NOT__ OPTIMIZED
 	// step one - circle
 	// step two - square with gpu rendering
@@ -183,17 +187,85 @@ GraphGL.prototype.node = function(radius, x, y) {
 	var sphere = new THREE.Mesh (
 		new THREE.Sphere(radius, segmants, rings), sphereMaterial);
 	
-	sphere.position.x = x;
-	sphere.position.y = y;
+	sphere.position.x = 0;
+	sphere.position.y = 0;
 	
 	this.scene.addChild(sphere);
+	
+	return sphere;
+}
+
+GraphGL.prototype.edge = function(node1, node2) {
+	var lineMat = new THREE.LineBasicMaterial( { color: 0xff0000, opacity: 1, linewidth: 3 } );
+	
+	var geom = new THREE.Geometry();
+	// geom.vertices.push( new THREE.Vertex( new THREE.Vector3(
+	// 	node1.position.x, 
+	// 	node1.position.y, 0
+	// ) ) );
+	geom.vertices.push (new THREE.Vertex(node1.position));
+	geom.vertices.push(new THREE.Vertex(node2.position));
+	// geom.vertices.push( new THREE.Vertex( new THREE.Vector3(
+	// 	node2.position.x,
+	// 	node2.position.y,
+	// 	0
+	// ) ) );
+	
+	var line = new THREE.Line(geom, lineMat);
+	this.scene.addObject( line );
+	return line; 
 }
 
 
 
-GraphGL.prototype.render = function(layout) {
-	// This can be put to webworkers...
-	// layout.call(this);
+GraphGL.prototype.render = function() {
+	mx = this.options.width - 100;
+	my = this.options.height - 100;
+	var node;
+	var bb = this.graph.bounding_box;
+	// console.log("=== BB ===");
+	// console.log(bb.bottomleft.x, bb.topright.x);
+	// console.log(bb.bottomleft.y, bb.topright.y);
+	// console.log("=== === ===");
+	for (var nindex in this.graph.nodes) {
+		var node = this.graph.nodes[nindex];
+		
+		var x = (node.x)/(bb.topright.x-bb.bottomleft.x)*mx;
+		var y = (node.y)/(bb.topright.y-bb.bottomleft.y)*my;
+		
+		// console.log("x: ", node.x, x);
+		// console.log("y: :", node.y, y);
+		// console.log("--- --- ---");
+		
+		this.graph.gl_nodes[nindex].position.x = x;
+		this.graph.gl_nodes[nindex].position.y = y;
+		
+		
+	}
+	
+	for (var eindex in this.graph.edges) {
+		// console.log("EDGE: ", this.graph.edges[eindex]);
+		var src = this.graph.edges[eindex].source;
+		var trg = this.graph.edges[eindex].target;
+		//console.log(this.graph.gl_edges[eindex].geometry.vertices[0].position);
+	// console.log(this.graph.gl_edges[eindex].geometry.vertices[0].position);
+	// console.log("nodez: ", this.graph.gl_nodes[src].position, this.graph.gl_nodes[trg].position);
+
+	// this.graph.gl_edges[eindex].geometry.vertices[0].position = {
+	// 	x: Math.random()*200,
+	// 	y: Math.random()*200,
+	// 	z: 0
+	// }
+		
+		this.graph.gl_edges[eindex].geometry.vertices[0].position = this.graph.gl_nodes[src].position;				
+		this.graph.gl_edges[eindex].geometry.vertices[1].position = this.graph.gl_nodes[trg].position;
+		
+		this.graph.gl_edges[eindex].geometry.__dirtyVertices = true;
+	}
+	
+	// console.log("edge loc", this.graph.gl_edges[4].geometry.vertices[0].position);
+	
+	this.renderer.render(this.scene, this.camera);
 	
 	return this;
 }
@@ -202,11 +274,12 @@ GraphGL.prototype.init = function(data, importer) {
 	// This can be put off to webworkers...
 	var that = this;
 	
-	this.graph = importer(data);
+	this.graph = importer.call(this, data);
 	this.layout_worker = new Worker(this.options.layout);
 	this.layout_worker.postMessage(function() {
 		return that.options.layoutSend.call(that);
 	}());
+	// this.layout_worker.onmessage = this.options.layoutUpdate;
 	this.layout_worker.onmessage = function(msg) {
 		that.options.layoutUpdate.call(that, msg.data);
 	};

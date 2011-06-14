@@ -33,7 +33,7 @@ void main() {
 <style>
 		#canvas {
 			background: #000;
-			width: 500px;
+			width: 600px;
 			height: 500px;
 			position:absolute;
 			left:56px;
@@ -48,11 +48,13 @@ $(document).ready(function(){
 	
 	var start = Date.now(); 
 	// var data = [];
-	var width = 500, height = 500;
+	var width = 600, height = 500;
 	
 	var url = "hello-world.gexf.xml";
 	// var url = "file:///Users/urbanskudnik/Dev/GraphGL/examples/example-2-gexf.html";
 	var layout = "force_directed.js";
+	
+	var ni = 0; // number of iterations 
 	
 	var gexfdata;
 	var options = {
@@ -70,19 +72,19 @@ $(document).ready(function(){
 				nodes: this.graph.nodes,
 				edges: this.graph.edges
 			};
-			
 			return worker_data;
 		},
 		layoutUpdate: function(data) {
 			console.log("ggl init", data);
 
-			// return;
+			this.graph.bounding_box = data.bounding_box;
 			for (var nindex in data.nodes) {
 				this.graph.nodes[nindex].x = data.nodes[nindex].x;
 				this.graph.nodes[nindex].y = data.nodes[nindex].y; 
 			}
 
-			console.log(this.graph);
+			console.log(ni++, this.graph);
+			this.render();
 		}
 	};
 	
