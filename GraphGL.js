@@ -51,6 +51,13 @@ function GraphGL(options) {
 	
 	this.scene = new THREE.Scene();
 	
+	this.node_geometry = new THREE.Plane(1, 1, 1, 1);
+	// this.node_material = new THREE.MeshBasicMaterial({color: 0xCC0000});
+	this.node_material = new THREE.MeshShaderMaterial({
+		vertexShader: $("#vertexShader").text(),
+		fragmentShader: $("#fragmentShader").text()
+	})
+	
 	// maybe camera should stay at 0, 0, 0 and object go away? or not - we won't need z coordinate anyway?
 	// console.log("Z COORD: ", this.options.width / Math.tan(VIEW_ANGLE * Math.PI/180));
 	this.camera.position.z = this.options.width / Math.tan(VIEW_ANGLE * Math.PI/180);
@@ -115,6 +122,7 @@ function GraphGL(options) {
 		function(ev){						
 			var difZ;
 			
+			console.log(that.camera, ev.detail);
 			if (ev.DOMMouseScroll) difZ = ev.detail; // Firefox
 			else difZ = ev.wheelDelta;
 			
@@ -123,12 +131,13 @@ function GraphGL(options) {
 			r.sub(that.events.mouse_position, that.options.r0);
 			
 			// Move to mouse cursor - still needs some work			
-			that.camera.translateX((difZ / that.camera.position.z)*r.x);
-			that.camera.translateY(-(difZ / that.camera.position.z)*r.y);
+			// that.camera.translateX((difZ / that.camera.position.z)*r.x);
+			// that.camera.translateY(-(difZ / that.camera.position.z)*r.y);
+			 
+			// DISABLED zooming for time being
+			// that.camera.position.z = that.camera.position.z - ev.detail*10;
 			
-			that.camera.position.z = that.camera.position.z - difZ;
-			
-			that.renderer.render(that.scene, that.camera);
+			// that.renderer.render(that.scene, that.camera);
 	});
 	
 	this.pointLight = new THREE.PointLight(0xFFFFFF);
@@ -163,17 +172,35 @@ Graph.prototype.node = function(data) {
 	// 	new THREE.Sphere(radius, segmants, rings), sphereMaterial);
 	
 	// no need to do it all the time? clone?
-	var node = new THREE.Mesh (
-		new THREE.Plane(10, 10, 10, 10),
-		new THREE.MeshShaderMaterial({
-			vertexShader: $("#vertexShader").text(),
-			fragmentShader: $("#fragmentShader").text()
-		})
-	);
 	
+	// var square = new THREE.Geometry();
+	// square.vertices.push(new THREE.Vertex(new THREE.Vector3(10, 10, 0)));
+	// square.vertices.push(new THREE.Vertex(new THREE.Vector3(-10, 10, 0)));
+	// square.vertices.push(new THREE.Vertex(new THREE.Vector3(10, -10, 0)));
+	// square.vertices.push(new THREE.Vertex(new THREE.Vector3(-10, -10, 0)));
+	// new THREE.Plane(10, 10, 10, 10),
+	// new THREE.MeshShaderMaterial({
+	// 	vertexShader: $("#vertexShader").text(),
+	// 	fragmentShader: $("#fragmentShader").text()
+	// })
+	
+	
+	// new THREE.MeshShaderMaterial({
+	// 	vertexShader: $("#vertexShader").text(),
+	// 	fragmentShader: $("#fragmentShader").text()
+	// })
+	
+	// var node = new THREE.Mesh (
+	// 	square,
+	// 	new THREE.MeshBasicMaterial({color: 0xCC0000})
+	// );
+	
+	var node = new THREE.Mesh(this.node_geometry, this.node_material);
 	
 	node.position.x = 0;
 	node.position.y = 0;
+	node.scale = new THREE.Vector3( 20, 20, 20 );
+	// node.scale = new THREE.Vector3( 10, 10, 10 );
 	
 	this.scene.addChild(node);
 	node.data = {};
@@ -202,46 +229,8 @@ Graph.prototype.edge = function(node1, node2) {
 	return line; 
 }
 
-
-function import_gexf(data) {
-	var that = this;
-	var gexf;
-	console.log("gexf");
-	
-	var graph = new Graph();
-	
-	gexf = $(data);
-	
-	
-	// Will need to be recursive
-	// console.log(that.Graph);
-	gexf.find("node").each(function(i, node){
-		var node = $(node);
-		
-		// console.log(node);
-		graph.nodes[node.attr("id")] = graph.node.call(that, {
-				id: node.attr("id"),
-				label: node.attr("label")
-			}); // should be more robust?
-	});
-	
-	gexf.find("edge").each(function(i, edge){
-		// console.log(edge);
-		var edge = $(edge);
-		
-		graph.edges[edge.attr("id")] = graph.edge.call(that,
-			graph.nodes[edge.attr("source")],
-			graph.nodes[edge.attr("target")]
-		);
-	});	
-	console.log("GENERATED GRAPH: ", graph);
-	return graph;
-}
-
-
-
 GraphGL.prototype.update = function() {
-	console.log("running update");
+	// console.log("running update");
 	
 	if (!this.graph.updated) {
 		requestAnimFrame(this.update());
@@ -286,7 +275,15 @@ GraphGL.prototype.init = function(data, importer) {
 	// This can be put off to webworkers...
 	var that = this;
 	
+	
 	this.graph = importer.call(this, data);
+	// this.import_worker = new Worker(this.options.importer);
+	// this.import_worker.postMessage(this.options.import_data);
+	
+	// this.import_worker.onmessage = function(msg) {
+	// 	console.log("from import worker: ", msg.data);
+	// };
+	
 	this.layout_worker = new Worker(this.options.layout);
 	this.layout_worker.postMessage(function() {
 		return that.options.layoutSend.call(that);

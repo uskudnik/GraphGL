@@ -8,6 +8,7 @@
 	<script type="text/javascript" charset="utf-8" src="../three.js/build/Three.js"></script>
 	
 	<script type="text/javascript" charset="utf-8" src="../GraphGL.js"></script>
+	<script type="text/javascript" charset="utf-8" src="import_gexf.js"></script>
 
 
 <script id="vertexShader" type="x-shader/x-vertex" charset="utf-8">
@@ -15,10 +16,13 @@
 precision highp float;
 #endif
 
+varying vec2 vUv;
+
 void main() {
-gl_Position = 	projectionMatrix *
+	vUv = uv;
+	gl_Position = projectionMatrix *
 				modelViewMatrix *
-				vec4(position,1.0);
+				vec4(position, 1.0);
 }
 </script>
 <script id="fragmentShader" type="x-shader/x-fragment" charset="utf-8">
@@ -26,8 +30,31 @@ gl_Position = 	projectionMatrix *
 precision highp float;
 #endif
 
+varying vec2 vUv;
+
 void main() {
-	gl_FragColor = vec4(0, 1.0, 1.0, 1.0);
+	vec2 pos = vUv;
+	
+	float dr = 0.03;
+	float doff = 0.5;
+	float rmax = pow(doff, 2.0);
+	pos.x = pos.x - doff;
+	pos.y = pos.y - doff;
+	float x2 = pow(pos.x, 2.0);
+	float y2 = pow(pos.y, 2.0);
+	float r = x2 + y2 - rmax + dr;
+	float R = x2 + y2 - rmax;
+	
+	float d = abs(r / (2.0*pos.x + 2.0*pos.y));
+	
+	// if ((-dr < r) && (r < dr)) {
+	if (r < 0.0) {
+		// gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+	} else {
+		if (R < 0.0) {
+			gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0-d/r);
+		}
+	}
 }
 </script>
 <style>
@@ -93,11 +120,11 @@ $(document).ready(function(){
 				worker_data.edges[ei] = gedges[ei].data;
 			}
 			
-			console.log("worker data: ", worker_data);
+			// console.log("worker data: ", worker_data);
 			return worker_data;
 		},
 		layoutUpdate: function(data) {
-			console.log("ggl init", data);
+			// console.log("ggl init", data);
 
 			mx = this.options.width - 100;
 			my = this.options.height - 100;
@@ -115,7 +142,7 @@ $(document).ready(function(){
 			
 			this.graph.updated = true;
 
-			console.log(ni++, this.graph);
+			// console.log(ni++, this.graph);
 			// 
 		}
 	};
