@@ -297,6 +297,10 @@ GraphGL.prototype.init = function(data, importer) {
 			that.updates_started = true;
 		// }
 	};
+	
+	this.layout_worker.onerror = function(event) {
+	    console.log(event.message + " (" + event.filename + ":" + event.lineno + ")");
+	};
 
 	return this;
 }

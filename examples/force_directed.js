@@ -7,7 +7,8 @@ var i = 0;
 
 graph = new Graph();
 
-function onmessage(msg) {	
+onmessage = function(msg) {
+// function onmessage(msg) {
 	opt = msg.data.options;
 	var nodes = msg.data.nodes;
 	var edges = msg.data.edges;
