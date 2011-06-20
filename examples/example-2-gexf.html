@@ -49,10 +49,10 @@ void main() {
 	
 	// if ((-dr < r) && (r < dr)) {
 	if (r < 0.0) {
-		// gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+		gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
 	} else {
 		if (R < 0.0) {
-			gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0-d/r);
+			// gl_FragColor = vec4(1.0, 0.0, 0.0, d/r);
 		}
 	}
 }
