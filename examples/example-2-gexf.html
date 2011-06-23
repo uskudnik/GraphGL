@@ -35,7 +35,7 @@ varying vec2 vUv;
 void main() {
 	vec2 pos = vUv;
 	
-	float dr = 0.03;
+	float dr = 0.05;
 	float doff = 0.5;
 	float rmax = pow(doff, 2.0);
 	pos.x = pos.x - doff;
@@ -52,7 +52,8 @@ void main() {
 		gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
 	} else {
 		if (R < 0.0) {
-			// gl_FragColor = vec4(1.0, 0.0, 0.0, d/r);
+			// 1.0-d/R
+			gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0-d/dr);
 		}
 	}
 }

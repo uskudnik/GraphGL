@@ -200,7 +200,7 @@ Graph.prototype.node = function(data) {
 	node.position.x = 0;
 	node.position.y = 0;
 	node.scale = new THREE.Vector3( 20, 20, 20 );
-	// node.scale = new THREE.Vector3( 10, 10, 10 );
+	// node.scale = new THREE.Vector3( 40, 40, 40 );
 	
 	this.scene.addChild(node);
 	node.data = {};
