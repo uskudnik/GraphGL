@@ -33,7 +33,9 @@ function GraphGL(options) {
 	
 	this.events = {};
 	
-	this.updates_started = false;
+	this.rendering_started = false;
+	
+	this.last_render = new Date();
 	
 	var VIEW_ANGLE = 45,
 		ASPECT = this.options.width / this.options.height,
@@ -221,7 +223,6 @@ Graph.prototype.node = function(data) {
 		this.options.nodes.scale, 
 		this.options.nodes.scale
 	);
-	// node.scale = new THREE.Vector3( 40, 40, 40 );
 	
 	this.scene.addChild(node);
 	node.data = {};
@@ -250,7 +251,7 @@ Graph.prototype.edge = function(node1, node2) {
 	return line; 
 }
 
-Graph.prototype.edge_arc = function(node1, node2) {
+Graph.prototype.arcEdge = function(node1, node2) {
 	// var lineMat = new THREE.LineBasicMaterial( { color: 0xff0000, opacity: 0.7, linewidth: 1} );
 	
 	// var geom = new THREE.Geometry();
@@ -288,13 +289,8 @@ Graph.prototype.edge_arc = function(node1, node2) {
 	return edge; 
 }
 
-GraphGL.prototype.update = function() {
+GraphGL.prototype.render = function() {
 	// console.log("running update");
-	
-	if (!this.graph.updated) {
-		requestAnimFrame(this.update());
-		return;
-	}
 	
 	// mx = this.options.width - 100;
 	// my = this.options.height - 100;
@@ -306,29 +302,40 @@ GraphGL.prototype.update = function() {
 	// console.log(bb.bottomleft.x, bb.topright.x);
 	// console.log(bb.bottomleft.y, bb.topright.y);
 	// console.log("=== === ===");
-	for (var nindex in this.graph.nodes) {		
-		this.graph.nodes[nindex].position.x = this.graph.nodes[nindex].data.x;
-		this.graph.nodes[nindex].position.y = this.graph.nodes[nindex].data.y;
+	var new_render = new Date();
+	
+	var dt = (new_render - this.last_render)/100; // miliseconds
+	// console.log(this.graph.nodes[3]);
+	for (var nindex in this.graph.nodes) {
+		var node = this.graph.nodes[nindex];
+		
+		node.position.x += (node.data.x - node.position.x)*dt
+		node.position.y += (node.data.y - node.position.y)*dt   
+		// console.log(this.graph.nodes[nindex]);
+		// this.graph.nodes[nindex].position.x = this.graph.nodes[nindex].data.x;
+		// this.graph.nodes[nindex].position.y = this.graph.nodes[nindex].data.y;
+		// this.renderer.render(this.scene, this.camera);
+		// break;
 	}
 	
-	var e = this.graph.edges;
-	for (var eindex in e) {
+	// var e = this.graph.edges;
+	// for (var eindex in e) {
 		// console.log("EDGE: ", this.graph.edges[eindex]);
-		var src = e[eindex].data.source;
-		var trg = e[eindex].data.target;
-		
-		var nsrc = this.graph.nodes[src];
-		var ntrg = this.graph.nodes[trg];
-		// console.log(e[eindex]);
-		
-		ethis = e[eindex]; // current edge
-		
-		var dx = Math.abs(nsrc.position.x - ntrg.position.x);
-		var dy = Math.abs(nsrc.position.y - ntrg.position.y); 
-		ethis.scale = new THREE.Vector3(dx, dy, 1);
-		
-		ethis.position.x = (nsrc.position.x + ntrg.position.x)/2;
-		ethis.position.y = (nsrc.position.y + ntrg.position.y)/2;
+		// var src = e[eindex].data.source;
+		// var trg = e[eindex].data.target;
+		// 
+		// var nsrc = this.graph.nodes[src];
+		// var ntrg = this.graph.nodes[trg];
+		// // console.log(e[eindex]);
+		// 
+		// ethis = e[eindex]; // current edge
+		// 
+		// var dx = Math.abs(nsrc.position.x - ntrg.position.x);
+		// var dy = Math.abs(nsrc.position.y - ntrg.position.y); 
+		// ethis.scale = new THREE.Vector3(dx, dy, 1);
+		// 
+		// ethis.position.x = (nsrc.position.x + ntrg.position.x)/2;
+		// ethis.position.y = (nsrc.position.y + ntrg.position.y)/2;
 		
 		// console.log(nsrc.position.x, ethis.position.x, ntrg.position.x);
 		
@@ -337,12 +344,12 @@ GraphGL.prototype.update = function() {
 		// this.graph.edges[eindex].geometry.vertices[1].position = this.graph.nodes[trg].position;
 		
 		// ethis.geometry.__dirtyVertices = true;
-	}
-		
-	this.renderer.render(this.scene, this.camera);
+	// }
 	
-	this.graph.updated = false;
-	// requestAnimFrame(this.update());
+	
+	this.renderer.render(this.scene, this.camera);
+	this.last_render = new_render;
+	// this.graph.updated = false;
 	// return this;
 }
 
@@ -365,21 +372,34 @@ GraphGL.prototype.init = function(data, importer) {
 	}());
 	// this.layout_worker.onmessage = this.options.layoutUpdate;
 	this.layout_worker.onmessage = function(msg) {
-		that.options.layoutUpdate.call(that, msg.data);
-		// if (!that.updates_started) {
-			// can probably be done in a smarter fashion?
-			that.update();
-			that.updates_started = true;
+		// console.log("getting back data: ", msg.data);
+		// if (msg.data.status == "complete"){
+		// 	this.rendering_ended
 		// }
+		that.options.layoutUpdate.call(that, msg.data);
+		
+		if (!that.rendering_started) {
+		// 	console.log("anim start");
+			that.rendering_started = true;
+			that.animate();
+		// 	animate();
+		}
 	};
 	
 	this.layout_worker.onerror = function(event) {
 	    console.log(event.message + " (" + event.filename + ":" + event.lineno + ")");
 	};
-
+	
 	return this;
 }
 
-// GraphGL.prototype.render = function() {
-// 	requestAnimFrame(this.update.call(this));
+
+// GraphGL.prototype.anim = function() {
+// 	// that = this;
+// 	// this.options.canvas.canvasId
+// 	
+// 	// Uncaught Error: TYPE_MISMATCH_ERR: DOM Exception 17 - suspected problem with namespace
+// 	animate = this.anim;
+// 	requestAnimFrame(animate);
+// 	this.render();
 // }

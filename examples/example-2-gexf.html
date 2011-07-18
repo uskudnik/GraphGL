@@ -171,12 +171,19 @@ $(document).ready(function(){
 				this.graph.nodes[nindex].data.y = y; 
 			}
 			
-			this.graph.updated = true;
+			// this.graph.updated = true;
 		}
 	};
 	
 	
 	var graphgl = new GraphGL(options);
+	
+	function animate() {
+		requestAnimFrame(animate);
+		graphgl.render();
+	}
+	
+	graphgl.animate = animate;
 	
 	// should go to web workers? or maybe not...
 	$.get(
@@ -186,7 +193,7 @@ $(document).ready(function(){
 				// console.log(gexfdata);
 				graphgl.init(gexfdata, import_gexf);
 				
-				
+				// animate()
 				//.render(force_layout);
 				
 				

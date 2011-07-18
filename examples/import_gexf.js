@@ -24,7 +24,7 @@ gexf.find("edge").each(function(i, edge){
 // console.log(edge);
 var edge = $(edge);
 
-graph.edges[edge.attr("id")] = graph.edge_arc.call(that,
+graph.edges[edge.attr("id")] = graph.arcEdge.call(that,
 	graph.nodes[edge.attr("source")],
 	graph.nodes[edge.attr("target")]);
 });

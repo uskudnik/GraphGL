@@ -38,6 +38,7 @@ onmessage = function(msg) {
 		postMessage(g);
 		// if (i > 5) close();
 	}, function() {
+		postMessage({status:"complete"});
 		close();
 	});
 }
