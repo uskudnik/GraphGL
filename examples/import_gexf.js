@@ -24,10 +24,9 @@ gexf.find("edge").each(function(i, edge){
 // console.log(edge);
 var edge = $(edge);
 
-graph.edges[edge.attr("id")] = graph.edge.call(that,
-graph.nodes[edge.attr("source")],
-graph.nodes[edge.attr("target")]
-);
+graph.edges[edge.attr("id")] = graph.edge_arc.call(that,
+	graph.nodes[edge.attr("source")],
+	graph.nodes[edge.attr("target")]);
 });
 console.log("GENERATED GRAPH: ", graph);
 return graph;

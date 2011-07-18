@@ -11,7 +11,7 @@
 	<script type="text/javascript" charset="utf-8" src="import_gexf.js"></script>
 
 
-<script id="vertexShader" type="x-shader/x-vertex" charset="utf-8">
+<script id="node-vertexShader" type="x-shader/x-vertex" charset="utf-8">
 #ifdef GL_ES
 precision highp float;
 #endif
@@ -25,10 +25,13 @@ void main() {
 				vec4(position, 1.0);
 }
 </script>
-<script id="fragmentShader" type="x-shader/x-fragment" charset="utf-8">
+
+<script id="node-fragmentShader" type="x-shader/x-fragment" charset="utf-8">
 #ifdef GL_ES
 precision highp float;
 #endif
+
+uniform vec3 color;
 
 varying vec2 vUv;
 
@@ -49,13 +52,46 @@ void main() {
 	
 	// if ((-dr < r) && (r < dr)) {
 	if (r < 0.0) {
-		gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+		// gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+		gl_FragColor = vec4(color, 1.0);
 	} else {
 		if (R < 0.0) {
 			// 1.0-d/R
-			gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0-d/dr);
+			// TODO: use smoothstep?
+			gl_FragColor = vec4(color, 1.0-d/dr);
 		}
 	}
+}
+</script>
+
+<script id="edge-vertexShader" type="x-shader/x-vertex" charset="utf-8">
+#ifdef GL_ES
+precision highp float;
+#endif
+
+varying vec2 vUv;
+
+void main() {
+	vUv = uv;
+	gl_Position = projectionMatrix *
+				modelViewMatrix *
+				vec4(position, 1.0);
+}
+</script>
+
+<script id="edge-fragmentShader" type="x-shader/x-fragment" charset="utf-8">
+#ifdef GL_ES
+precision highp float;
+#endif
+
+varying vec2 vUv;
+
+void main() {
+	vec2 pos = vUv;
+	
+	// if (abs(pos.x - pos.y) < 0.1) {
+	gl_FragColor = vec4(1.0, 1.0, 0.0, 0.5);
+	// }
 }
 </script>
 <style>
@@ -72,7 +108,8 @@ void main() {
 
 <script type="text/javascript" charset="utf-8">
 $(document).ready(function(){
-	var canvas = $("#canvas");
+	// var canvas = $("#canvas");
+	var canvasId = "#canvas";
 	
 	var start = Date.now(); 
 	// var data = [];
@@ -86,21 +123,14 @@ $(document).ready(function(){
 	
 	var gexfdata;
 	var options = {
-		canvas: canvas,
+		canvas: {
+			canvasId: canvasId,
+			backgroundColor: 0x000000
+		},
 		width: width,
 		height: height,
 		layout: layout,
-		layoutSend: function() {
-			// var worker_data = {
-			// 	options: {
-			// 		// options, by default, also includes a canvas, which prevents copying
-			// 		width: this.options.width,
-			// 		height: this.options.height
-			// 	},
-			// 	nodes: this.graph.nodes,
-			// 	edges: this.graph.edges
-			// };
-			
+		layoutSend: function() {			
 			var worker_data = {
 				options: {
 					width: this.options.width,
@@ -142,9 +172,6 @@ $(document).ready(function(){
 			}
 			
 			this.graph.updated = true;
-
-			// console.log(ni++, this.graph);
-			// 
 		}
 	};
 	
