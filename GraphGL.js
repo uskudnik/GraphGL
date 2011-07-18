@@ -307,44 +307,58 @@ GraphGL.prototype.render = function() {
 	var dt = (new_render - this.last_render)/100; // miliseconds
 	// console.log(this.graph.nodes[3]);
 	for (var nindex in this.graph.nodes) {
-		var node = this.graph.nodes[nindex];
-		
+		var node = this.graph.nodes[nindex];		
 		node.position.x += (node.data.x - node.position.x)*dt
 		node.position.y += (node.data.y - node.position.y)*dt   
-		// console.log(this.graph.nodes[nindex]);
-		// this.graph.nodes[nindex].position.x = this.graph.nodes[nindex].data.x;
-		// this.graph.nodes[nindex].position.y = this.graph.nodes[nindex].data.y;
-		// this.renderer.render(this.scene, this.camera);
-		// break;
 	}
 	
-	// var e = this.graph.edges;
-	// for (var eindex in e) {
+	var e = this.graph.edges;
+	for (var eindex in e) {
+		// console.log(e[3]);
+		// break;
 		// console.log("EDGE: ", this.graph.edges[eindex]);
-		// var src = e[eindex].data.source;
-		// var trg = e[eindex].data.target;
-		// 
-		// var nsrc = this.graph.nodes[src];
-		// var ntrg = this.graph.nodes[trg];
-		// // console.log(e[eindex]);
-		// 
-		// ethis = e[eindex]; // current edge
-		// 
-		// var dx = Math.abs(nsrc.position.x - ntrg.position.x);
-		// var dy = Math.abs(nsrc.position.y - ntrg.position.y); 
-		// ethis.scale = new THREE.Vector3(dx, dy, 1);
-		// 
-		// ethis.position.x = (nsrc.position.x + ntrg.position.x)/2;
-		// ethis.position.y = (nsrc.position.y + ntrg.position.y)/2;
+		var src = e[eindex].data.source;
+		var trg = e[eindex].data.target;
 		
+		var nsrc = this.graph.nodes[src];
+		var ntrg = this.graph.nodes[trg];
+		// console.log(e[eindex]);
+		
+		ethis = e[eindex]; // current edge
+		
+		var dx = Math.abs(nsrc.position.x - ntrg.position.x);
+		var dy = Math.abs(nsrc.position.y - ntrg.position.y); 
+		ethis.scale = new THREE.Vector3(dx, dy, 1);
+		
+		ethis.position.x = (nsrc.position.x + ntrg.position.x)/2;
+		ethis.position.y = (nsrc.position.y + ntrg.position.y)/2;
+		
+		// value: new THREE.Vector2(nsrc.position.x, nsrc.position.y)
+		ethis.materials[0].uniforms = {
+			pstart: {
+				type: "v2",
+				// value: new THREE.Vector2(0.5, 0.5)
+				value: new THREE.Vector2(nsrc.position.x, nsrc.position.y)
+			},
+			pend: {
+				type: "v2",
+				value: new THREE.Vector2(ntrg.position.x, ntrg.position.y)
+			}
+		};
+		
+		// console.log(ethis.materials[0].uniforms);
+		// break;
 		// console.log(nsrc.position.x, ethis.position.x, ntrg.position.x);
 		
 		// console.log("edge src, trg: ", src, trg);
+		
+		
+		// For line
 		// this.graph.edges[eindex].geometry.vertices[0].position = this.graph.nodes[src].position;				
 		// this.graph.edges[eindex].geometry.vertices[1].position = this.graph.nodes[trg].position;
 		
 		// ethis.geometry.__dirtyVertices = true;
-	// }
+	}
 	
 	
 	this.renderer.render(this.scene, this.camera);

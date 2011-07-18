@@ -1,3 +1,10 @@
 GraphGL
 
 Visualizing graphs with WebGL, since 2011
+
+Usage:
+
+1. git clone git@github.com:uskudnik/GraphGL.git
+2. In the project directory: git submodule update --init 
+3. Wait 
+4. Profit (example-2-gexf.html)

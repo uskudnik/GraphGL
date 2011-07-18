@@ -86,11 +86,30 @@ precision highp float;
 
 varying vec2 vUv;
 
+uniform vec2 pstart;
+uniform vec2 pend;
+
+vec2 dif = pend - pstart;
+
+float a = dif.x;
+float b = dif.y;
+
+float ellipse(float x, float y, float edge) {
+	// return pow(x, 2.0) / pow(a, 2.0) + pow(y, 2.0) / pow(b, 2.0) - edge;
+	return pow(x, 2.0) + pow(y, 2.0) - edge;
+}
+
 void main() {
 	vec2 pos = vUv;
 	
 	// if (abs(pos.x - pos.y) < 0.1) {
-	gl_FragColor = vec4(1.0, 1.0, 0.0, 0.5);
+	//smoothstep(ellipse(pos.x, pos.y, 1.1), ellipse(pos.x, pos.y, 0.9), pos)
+	// gl_FragColor = vec4(1.0, 1.0, 0.0, ellipse(pos.x, pos.y, 0.9))
+	if (ellipse(pos.x, pos.y, 1.0) < 0.0) {
+		if (ellipse(pos.x, pos.y, 1.0) > -0.1) {
+			gl_FragColor = vec4(1.0, 0.0, 0.0, 0.5);
+		}
+	}
 	// }
 }
 </script>
