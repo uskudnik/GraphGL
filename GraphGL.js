@@ -334,6 +334,15 @@ GraphGL.prototype.render = function() {
 		ethis.position.y = (nsrc.position.y + ntrg.position.y)/2;
 		
 		// value: new THREE.Vector2(nsrc.position.x, nsrc.position.y)
+		
+		var W = ntrg.position.x-nsrc.position.x;
+		var H = ntrg.position.y-nsrc.position.y;
+		
+		// console.log("w: ", W);
+		// 		console.log("h: ", H);
+		// 		console.log("rad: ", W*W/(8*H) + H/2);
+		// 		
+		// 		break
 		ethis.materials[0].uniforms = {
 			pstart: {
 				type: "v2",
@@ -343,6 +352,10 @@ GraphGL.prototype.render = function() {
 			pend: {
 				type: "v2",
 				value: new THREE.Vector2(ntrg.position.x, ntrg.position.y)
+			},
+			canvasDimensions: {
+				type: "v2",
+				value: new THREE.Vector2(this.options.width, this.options.height)
 			}
 		};
 		
