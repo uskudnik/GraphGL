@@ -58,7 +58,9 @@ void main() {
 		if (R < 0.0) {
 			// 1.0-d/R
 			// TODO: use smoothstep?
+			
 			gl_FragColor = vec4(color, 1.0-d/dr);
+			// gl_FragColor = vec4(color, smoothstep(r, R, sqrt(pow(pos.x, 2.0) + pow(pos.y, 2.0))));
 		}
 	}
 }
@@ -86,6 +88,7 @@ precision highp float;
 
 varying vec2 vUv;
 
+uniform vec2 radiusbox;
 uniform vec2 pstart;
 uniform vec2 pend;
 
@@ -93,10 +96,12 @@ uniform vec2 canvasDimensions;
 
 vec2 dif = pend - pstart;
 
-float a = dif.x;
-float b = dif.y;
+float w = radiusbox.x;
+float h = radiusbox.y;
 
-float radius = pow(a, 2.0) / (8.0 * b) + b / 2.0; 
+float radius = pow(w, 2.0) / (8.0 * h) + h / 2.0;
+
+vec2 offset = vec2(w/2.0, radius);
 
 // float ellipseold(float x, float y, float edge) {
 // 	// return pow(x, 2.0) / pow(a, 2.0) + pow(y, 2.0) / pow(b, 2.0) - edge;
@@ -106,14 +111,12 @@ float radius = pow(a, 2.0) / (8.0 * b) + b / 2.0;
 vec2 pixelArea = vec2(1.0, 1.0) / canvasDimensions;
 float pixel = max(pixelArea.x, pixelArea.y)*10.0;
 
-float arc2(float x) {
-	return sin(2.0*x/a) * b;
-}
 
 float arc(vec2 xy) {
 	// 1.09091 x^2-2.07273 x+0.986364
 	// return 1.09091* pow(x, 2.0) - 2.07273 * x + 0.986364 - y;
-	return pow(xy.x, 2.0) + pow(xy.y, 2.0) - 1.0;
+	// return pow(xy.x-offset.x, 2.0) + pow(xy.y-offset.y, 2.0) - 1.0;
+	return pow(xy.x-0.5, 2.0) + pow(xy.y, 2.0) - 0.5;
 }
 
 float smootherstep(float edge0, float edge1, float x)
@@ -127,50 +130,11 @@ float smootherstep(float edge0, float edge1, float x)
 void main() {
 	vec2 pos = vUv;
 	
-	// if (abs(pos.x - pos.y) < 0.1) {
-	//smoothstep(ellipse(pos.x, pos.y, 1.1), ellipse(pos.x, pos.y, 0.9), pos)
-	// gl_FragColor = vec4(1.0, 1.0, 0.0, ellipse(pos.x, pos.y, 0.9))
-	// if (ellipse(pos.x, pos.y, 1.0) < 0.0) {
-	// 	if (ellipse(pos.x, pos.y, 1.0) > -0.1) {
-	// 		
-	// 	}
-	// }
-	// }
-	// gl_FragColor = vec4(1.0, 0.0, 0.0, smoothstep(vec2(0.0, 0.0), vec2(1.0, 0.0), pos));
-	// if (ellipseold(pos.x, pos.y, 1.0) < 0.0) {
-	// 	gl_FragColor = vec4(1.0, 0.0, 0.0, 0.5);
-	// }
-	
-	// gl_FragColor = vec4(1.0, 0.0, 0.0, smoothstep(arc(pos) - pixel/2.0, arc(pos)+pixel/2.0, pos.y));
-	
-	
-	
-	// gl_FragColor = vec4(1.0, 0.0, 0.0, smootherstep(arc(pos)-pixel, 0.0+pixel, arc(pos)));
-	
-	float ytrg = arc2(pos.x);
-	if ((pos.y - ytrg - pixel) < 0.0) {
-		if ((pos.y - ytrg + pixel) < 0.0) {
-			gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+	if (arc(pos) < 0.0) {
+		if (arc(pos) + pixel > 0.0) {
+			gl_FragColor = vec4(1.0, 0.0, 0.0, smoothstep(arc(pos), arc(pos)+pixel/4.0, sqrt(pow(pos.x, 2.0) + pow(pos.y, 2.0))));
 		}
 	}
-		
-	// if (arc(pos) - pixel < 0.0) {
-	// 	if (arc(pos) + pixel > 0.0) {
-	// 		gl_FragColor = vec4(1.0, 0.0, 0.0, smoothstep(arc(pos) - pixel/2.0, arc(pos)+pixel/2.0, pos.x));
-	// 	}
-	// }
-	
-	
-	
-	// 			// arc(pos.x, pos.y) - pixel
-	// 			// gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0); // red arc
-	// 			// gl_FragColor = vec4(1.0, 0.0, 0.0, smoothstep(arc(pos) - pixel/2.0, arc(pos)+pixel/2.0, pos.y));
-	// 		} else {
-	// 			// gl_FragColor = vec4(0.0, 0.0, 1.0, 0.5); // blue remaining area
-	// 		}
-	// 	} else {
-	// 		// gl_FragColor = vec4(0.0, 1.0, 0.0, 0.5); // green area
-	// 	}
 }
 </script>
 <style>

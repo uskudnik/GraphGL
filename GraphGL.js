@@ -326,17 +326,30 @@ GraphGL.prototype.render = function() {
 		
 		ethis = e[eindex]; // current edge
 		
-		var dx = Math.abs(nsrc.position.x - ntrg.position.x);
-		var dy = Math.abs(nsrc.position.y - ntrg.position.y); 
-		ethis.scale = new THREE.Vector3(dx, dy, 1);
+		// var dx = Math.abs(nsrc.position.x - ntrg.position.x);
+		// var dy = Math.abs(nsrc.position.y - ntrg.position.y);
+		var dif = new THREE.Vector3().sub(nsrc.position, ntrg.position); 
+		// ethis.scale = new THREE.Vector3(dx, dx/10, 1);
 		
-		ethis.position.x = (nsrc.position.x + ntrg.position.x)/2;
-		ethis.position.y = (nsrc.position.y + ntrg.position.y)/2;
+		var w = ntrg.position.distanceTo(nsrc.position);
+		var h = Math.max(dif.y, w);  // ? dif.y : w/5;
+		
+		// console.log("ethis:", ethis);
+		// non-rotated version
+		// ethis.position.x = (nsrc.position.x + ntrg.position.x)/2;
+		// ethis.position.y = (nsrc.position.y + ntrg.position.y)/2;
+		
+		// console.log((nsrc.position.y + ntrg.position.y)/2, nsrc.position.addSelf(ntrg.position).divideScalar(2).y);
+		
+		ethis.position = new THREE.Vector3().add(nsrc.position, ntrg.position).divideScalar(2);
+		// ethis.position = nsrc.position;
+		
+		ethis.rotation = new THREE.Vector3(0, 0, Math.atan(dif.y/dif.x));
+		ethis.scale = new THREE.Vector3(w, h, 1);
+				
+		// break;
 		
 		// value: new THREE.Vector2(nsrc.position.x, nsrc.position.y)
-		
-		var W = ntrg.position.x-nsrc.position.x;
-		var H = ntrg.position.y-nsrc.position.y;
 		
 		// console.log("w: ", W);
 		// 		console.log("h: ", H);
@@ -344,6 +357,10 @@ GraphGL.prototype.render = function() {
 		// 		
 		// 		break
 		ethis.materials[0].uniforms = {
+			radiusbox: {
+				type: "v2",
+				value: new THREE.Vector2(w, h)
+			},
 			pstart: {
 				type: "v2",
 				// value: new THREE.Vector2(0.5, 0.5)
