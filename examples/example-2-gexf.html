@@ -89,12 +89,12 @@ precision highp float;
 varying vec2 vUv;
 
 uniform vec2 radiusbox;
-uniform vec2 pstart;
-uniform vec2 pend;
+// uniform vec2 pstart;
+// uniform vec2 pend;
 
 uniform vec2 canvasDimensions;
 
-vec2 dif = pend - pstart;
+// vec2 dif = pend - pstart;
 
 float w = radiusbox.x;
 float h = radiusbox.y;
@@ -103,19 +103,11 @@ float radius = pow(w, 2.0) / (8.0 * h) + h / 2.0;
 
 vec2 offset = vec2(w/2.0, radius);
 
-// float ellipseold(float x, float y, float edge) {
-// 	// return pow(x, 2.0) / pow(a, 2.0) + pow(y, 2.0) / pow(b, 2.0) - edge;
-// 	return pow(x, 2.0) + pow(y, 2.0) - edge;
-// }
-
 vec2 pixelArea = vec2(1.0, 1.0) / canvasDimensions;
 float pixel = max(pixelArea.x, pixelArea.y)*10.0;
 
 
 float arc(vec2 xy) {
-	// 1.09091 x^2-2.07273 x+0.986364
-	// return 1.09091* pow(x, 2.0) - 2.07273 * x + 0.986364 - y;
-	// return pow(xy.x-offset.x, 2.0) + pow(xy.y-offset.y, 2.0) - 1.0;
 	return pow(xy.x-0.5, 2.0) + pow(xy.y, 2.0) - 0.5;
 }
 

@@ -32,28 +32,33 @@ function GraphGL(options) {
 	this.layout_worker;
 	
 	this.events = {};
-	
 	this.rendering_started = false;
-	
 	this.last_render = new Date();
-	
+		
 	var VIEW_ANGLE = 45,
+		viewField = this.options.width / Math.tan(VIEW_ANGLE * Math.PI/180), // Distance, at which entire drawing area is seen
 		ASPECT = this.options.width / this.options.height,
-		NEAR = 0.1, // object close then NEAR wont be seen
-		FAR = 1000; // object further then FAR wont be seen
+		NEAR = 0.1; // object close then NEAR wont be seen
+		 
+	this.FAR = viewField+500; // object further then FAR wont be seen; must block zoom before
 	
 	this.renderer = new THREE.WebGLRenderer({
 		clearColor: this.options.canvas.backgroundColor,
 	});
+	this.renderer.setSize(this.options.width, this.options.height);	
+	jQuery(this.options.canvas.canvasId).append(this.renderer.domElement);
 	
 	this.camera = new THREE.Camera(
 		VIEW_ANGLE,
 		ASPECT,
 		NEAR,
-		FAR);
+		this.FAR);
+	
+	this.camera.position.z = viewField;
 	
 	this.scene = new THREE.Scene();
 	
+	// our basic geometry
 	this.node_geometry = new THREE.Plane(1, 1, 1, 1);
 	
 	this.node_material = new THREE.MeshShaderMaterial({
@@ -65,63 +70,37 @@ function GraphGL(options) {
 		vertexShader: $("#edge-vertexShader").text(),
 		fragmentShader: $("#edge-fragmentShader").text()
 	});
-	
-	// maybe camera should stay at 0, 0, 0 and object go away? or not - we won't need z coordinate anyway?
-	// console.log("Z COORD: ", this.options.width / Math.tan(VIEW_ANGLE * Math.PI/180));
-	this.camera.position.z = this.options.width / Math.tan(VIEW_ANGLE * Math.PI/180);
-
-	this.renderer.setSize(this.options.width, this.options.height);
 		
-	jQuery(this.options.canvas.canvasId).append(this.renderer.domElement);
-	
 	// Events
-	this.events.mouse = {}; 	
+	this.events.mouse = {};
+	this.events.mouse.position = new THREE.Vector2();
+	
+	// For dragging around canvas
 	$(this.renderer.domElement).mousedown(function(ev){
 		that.events.mouse.down = true;
-		that.events.mouse.x = ev.pageX;
-		that.events.mouse.y = ev.pageY;
+		that.events.mouse.position.set(ev.pageX, ev.pageY);
 	});
 	$(this.renderer.domElement).bind("mouseup mouseleave", function(ev){
 		that.events.mouse.down = false;
 	});
 	
-	this.events.mouse_position = new THREE.Vector2();
 	$(this.renderer.domElement).mousemove(function(ev){
 		if (that.events.mouse.down){			
-			var difX = (-1)*(ev.pageX - that.events.mouse.x);
-			var difY = (ev.pageY - that.events.mouse.y);
+			var difX = (-1)*(ev.pageX - that.events.mouse.position.x);
+			var difY = (ev.pageY - that.events.mouse.position.y);
 			
-			// console.log(difX, difY);
 			that.camera.translateX(difX);
 			that.camera.translateY(difY);
-			that.renderer.render(that.scene, that.camera);
 		}
 		
-		that.events.mouse.x = ev.pageX;
-		that.events.mouse.y = ev.pageY;
+		// that.events.mouse.x = ev.pageX;
+		// that.events.mouse.y = ev.pageY;
 		
-		that.events.mouse_position.set(ev.pageX, ev.pageY);
-		// console.log(that.events.mouse_position);
+		that.events.mouse.position.set(ev.pageX, ev.pageY);
 	});
 	
-	// use jquery smart events?
-	// $(this.renderer.domElement).bind({
-	// 		mousewheel: function(e) {
-	// 			// All other browser
-	// 			that.camera.position.z = that.camera.position.z + e.wheelDelta;
-	// 			that.renderer.render(that.scene, that.camera);
-	// 		},
-	// 		DOMMouseScroll: function(e) {
-	// 			// Firefox event
-	// 			console.log(e, e.detail, e.HORIZONTAL_AXIS, e.VERTICAL_AXIS);
-	// 			//var dir = e.detail;
-	// 			//if
-	// 			
-	// 			that.camera.position.z = that.camera.position.z + e.detail*2; 
-	// 			that.renderer.render(that.scene, that.camera);
-	// 		}
-	// 	});
-	
+	// Zooming
+	// Middle of canvas vector
 	this.options.r0 = new THREE.Vector2(
 		$(this.renderer.domElement).offset().left+this.options.width/2,
 		$(this.renderer.domElement).offset().top+this.options.height/2);
@@ -130,32 +109,26 @@ function GraphGL(options) {
 		function(ev){						
 			var difZ;
 			
-			console.log(that.camera, ev.detail);
 			if (ev.DOMMouseScroll) difZ = ev.detail; // Firefox
 			else difZ = ev.wheelDelta;
-			
-			// console.log(that.events.mouse_position.x, that.events.mouse_position.y);
+
+			console.log(difZ);
 			var r = new THREE.Vector2();
-			r.sub(that.events.mouse_position, that.options.r0);
+			r.sub(that.events.mouse.position, that.options.r0);
 			
-			// Move to mouse cursor - still needs some work			
-			// that.camera.translateX((difZ / that.camera.position.z)*r.x);
-			// that.camera.translateY(-(difZ / that.camera.position.z)*r.y);
-			 
-			// DISABLED zooming for time being
-			// that.camera.position.z = that.camera.position.z - ev.detail*10;
-			
-			// that.renderer.render(that.scene, that.camera);
+			// Move to mouse cursor - still needs some work		
+			console.log(that.camera.position.z - difZ);
+			if ((that.camera.position.z - difZ) < that.FAR && (that.camera.position.z - difZ) > 100) {
+				that.camera.translateX((difZ / that.camera.position.z)*r.x);
+				that.camera.translateY(-(difZ / that.camera.position.z)*r.y);
+				that.camera.position.z = that.camera.position.z - difZ;
+			}
 	});
 	
 	this.pointLight = new THREE.PointLight(0xFFFFFF);
-	this.pointLight.position.x = 10;
-	this.pointLight.position.y = 20;
-	this.pointLight.position.z = 130;
+	this.pointLight.position.set(0, 0, 0);
 	
 	this.scene.addLight(this.pointLight);
-	
-	this.renderer.render(this.scene, this.camera);
 }
 
 GraphGL.prototype.hexColorToRGB = function(hex) {
@@ -169,39 +142,10 @@ GraphGL.prototype.hexColorToRGB = function(hex) {
 function Graph() {}
 Graph.prototype.nodes = {};
 Graph.prototype.edges = {};
-// Graph.prototype.gl_nodes = {};
-// Graph.prototype.gl_edges = {};
 
 Graph.prototype.node = function(data) {
 	// need to be data, not just for label!
-	// 
-	// var node = new THREE.Mesh (
-	// 	new THREE.Sphere(radius, segmants, rings), sphereMaterial);
 	
-	// no need to do it all the time? clone?
-	
-	// var square = new THREE.Geometry();
-	// square.vertices.push(new THREE.Vertex(new THREE.Vector3(10, 10, 0)));
-	// square.vertices.push(new THREE.Vertex(new THREE.Vector3(-10, 10, 0)));
-	// square.vertices.push(new THREE.Vertex(new THREE.Vector3(10, -10, 0)));
-	// square.vertices.push(new THREE.Vertex(new THREE.Vector3(-10, -10, 0)));
-	// new THREE.Plane(10, 10, 10, 10),
-	// new THREE.MeshShaderMaterial({
-	// 	vertexShader: $("#vertexShader").text(),
-	// 	fragmentShader: $("#fragmentShader").text()
-	// })
-	
-	
-	// new THREE.MeshShaderMaterial({
-	// 	vertexShader: $("#vertexShader").text(),
-	// 	fragmentShader: $("#fragmentShader").text()
-	// })
-	
-	// var node = new THREE.Mesh (
-	// 	square,
-	// 	new THREE.MeshBasicMaterial({color: 0xCC0000})
-	// );
-		
 	if (data.color !== undefined) {
 		colorVector = this.hexColorToRGB(data.color);
 	} else {
@@ -218,6 +162,7 @@ Graph.prototype.node = function(data) {
 	
 	node.position.x = 0;
 	node.position.y = 0;
+	// should be returned by engine?
 	node.scale = new THREE.Vector3(
 		this.options.nodes.scale, 
 		this.options.nodes.scale, 
@@ -247,36 +192,13 @@ Graph.prototype.edge = function(node1, node2) {
 		target: node2.data.id
 	};
 	
-	// console.log(line);
 	return line; 
 }
 
-Graph.prototype.arcEdge = function(node1, node2) {
-	// var lineMat = new THREE.LineBasicMaterial( { color: 0xff0000, opacity: 0.7, linewidth: 1} );
-	
-	// var geom = new THREE.Geometry();
-	// 	geom.vertices.push(new THREE.Vertex(node1.position));
-	// 	geom.vertices.push(new THREE.Vertex(node2.position));
-	
-	// var dx = Math.abs(node1.position.x - node2.position.x);
-	// var dy = Math.abs(node1.position - node2.position);
-	
-	// var line = new THREE.Line(geom, lineMat);
-	// 	this.scene.addObject( line );
-	// 	
-	
+Graph.prototype.arcEdge = function(node1, node2) {	
 	var edge = new THREE.Mesh(this.node_geometry, this.edge_material);
 	
 	edge.scale = new THREE.Vector3(10, 10, 10);
-	edge.position.x = 0;
-	edge.position.y = 0;
-	
-	// node.position.x = 0;
-	// node.position.y = 0;
-	// node.scale = new THREE.Vector3( 20, 20, 20 );
-	// node.scale = new THREE.Vector3( 40, 40, 40 );
-	
-	// this.scene.addChild(node);
 	
 	edge.data = {
 		source: node1.data.id,
@@ -285,77 +207,41 @@ Graph.prototype.arcEdge = function(node1, node2) {
 	
 	this.scene.addChild(edge);
 	
-	// console.log(line);
 	return edge; 
 }
 
 GraphGL.prototype.render = function() {
-	// console.log("running update");
-	
-	// mx = this.options.width - 100;
-	// my = this.options.height - 100;
-	// var node;
-	
-	// var bb = this.graph.bounding_box;
-	// console.log(this.graph.bounding_box);
-	// console.log("=== BB ===");
-	// console.log(bb.bottomleft.x, bb.topright.x);
-	// console.log(bb.bottomleft.y, bb.topright.y);
-	// console.log("=== === ===");
 	var new_render = new Date();
 	
+	// 100ms is interval between calculations - should be specified in options/with algorithms?
 	var dt = (new_render - this.last_render)/100; // miliseconds
-	// console.log(this.graph.nodes[3]);
 	for (var nindex in this.graph.nodes) {
-		var node = this.graph.nodes[nindex];		
+		var node = this.graph.nodes[nindex];
+		// node.position.addSelf()
 		node.position.x += (node.data.x - node.position.x)*dt
 		node.position.y += (node.data.y - node.position.y)*dt   
 	}
 	
 	var e = this.graph.edges;
 	for (var eindex in e) {
-		// console.log(e[3]);
-		// break;
-		// console.log("EDGE: ", this.graph.edges[eindex]);
 		var src = e[eindex].data.source;
 		var trg = e[eindex].data.target;
 		
 		var nsrc = this.graph.nodes[src];
 		var ntrg = this.graph.nodes[trg];
-		// console.log(e[eindex]);
 		
 		ethis = e[eindex]; // current edge
 		
-		// var dx = Math.abs(nsrc.position.x - ntrg.position.x);
-		// var dy = Math.abs(nsrc.position.y - ntrg.position.y);
 		var dif = new THREE.Vector3().sub(nsrc.position, ntrg.position); 
-		// ethis.scale = new THREE.Vector3(dx, dx/10, 1);
 		
 		var w = ntrg.position.distanceTo(nsrc.position);
 		var h = Math.max(dif.y, w);  // ? dif.y : w/5;
 		
-		// console.log("ethis:", ethis);
-		// non-rotated version
-		// ethis.position.x = (nsrc.position.x + ntrg.position.x)/2;
-		// ethis.position.y = (nsrc.position.y + ntrg.position.y)/2;
-		
-		// console.log((nsrc.position.y + ntrg.position.y)/2, nsrc.position.addSelf(ntrg.position).divideScalar(2).y);
-		
 		ethis.position = new THREE.Vector3().add(nsrc.position, ntrg.position).divideScalar(2);
-		// ethis.position = nsrc.position;
 		
 		ethis.rotation = new THREE.Vector3(0, 0, Math.atan(dif.y/dif.x));
 		ethis.scale = new THREE.Vector3(w, h, 1);
-				
-		// break;
 		
-		// value: new THREE.Vector2(nsrc.position.x, nsrc.position.y)
-		
-		// console.log("w: ", W);
-		// 		console.log("h: ", H);
-		// 		console.log("rad: ", W*W/(8*H) + H/2);
-		// 		
-		// 		break
 		ethis.materials[0].uniforms = {
 			radiusbox: {
 				type: "v2",
@@ -363,7 +249,6 @@ GraphGL.prototype.render = function() {
 			},
 			pstart: {
 				type: "v2",
-				// value: new THREE.Vector2(0.5, 0.5)
 				value: new THREE.Vector2(nsrc.position.x, nsrc.position.y)
 			},
 			pend: {
@@ -376,12 +261,6 @@ GraphGL.prototype.render = function() {
 			}
 		};
 		
-		// console.log(ethis.materials[0].uniforms);
-		// break;
-		// console.log(nsrc.position.x, ethis.position.x, ntrg.position.x);
-		
-		// console.log("edge src, trg: ", src, trg);
-		
 		
 		// For line
 		// this.graph.edges[eindex].geometry.vertices[0].position = this.graph.nodes[src].position;				
@@ -393,14 +272,10 @@ GraphGL.prototype.render = function() {
 	
 	this.renderer.render(this.scene, this.camera);
 	this.last_render = new_render;
-	// this.graph.updated = false;
-	// return this;
 }
 
 GraphGL.prototype.init = function(data, importer) {
-	// This can be put off to webworkers...
 	var that = this;
-	
 	
 	this.graph = importer.call(this, data);
 	// this.import_worker = new Worker(this.options.importer);
@@ -414,19 +289,13 @@ GraphGL.prototype.init = function(data, importer) {
 	this.layout_worker.postMessage(function() {
 		return that.options.layoutSend.call(that);
 	}());
-	// this.layout_worker.onmessage = this.options.layoutUpdate;
+
 	this.layout_worker.onmessage = function(msg) {
-		// console.log("getting back data: ", msg.data);
-		// if (msg.data.status == "complete"){
-		// 	this.rendering_ended
-		// }
 		that.options.layoutUpdate.call(that, msg.data);
 		
 		if (!that.rendering_started) {
-		// 	console.log("anim start");
 			that.rendering_started = true;
 			that.animate();
-		// 	animate();
 		}
 	};
 	
