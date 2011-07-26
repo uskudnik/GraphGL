@@ -28,7 +28,7 @@ function GraphGL(options) {
 		this.options[np] = options[np];
 	}
 		
-	this.graph;
+	this.graph = new Graph();
 	this.layout_worker;
 	
 	this.events = {};
@@ -160,8 +160,8 @@ Graph.prototype.node = function(data) {
 	};
 	var node = new THREE.Mesh(this.node_geometry, this.node_material);
 	
-	node.position.x = 0;
-	node.position.y = 0;
+	// node.position.x = 0;
+	// node.position.y = 0;
 	// should be returned by engine?
 	node.scale = new THREE.Vector3(
 		this.options.nodes.scale, 
@@ -170,9 +170,10 @@ Graph.prototype.node = function(data) {
 	);
 	
 	this.scene.addChild(node);
-	node.data = {};
+	// node.data = {};
 	node.data = data;
 	
+	// console.log("returning node: ", node);
 	return node;
 };
 
@@ -195,14 +196,14 @@ Graph.prototype.edge = function(node1, node2) {
 	return line; 
 }
 
-Graph.prototype.arcEdge = function(node1, node2) {	
+Graph.prototype.arcEdge = function(source, target) {	
 	var edge = new THREE.Mesh(this.node_geometry, this.edge_material);
 	
 	edge.scale = new THREE.Vector3(10, 10, 10);
 	
 	edge.data = {
-		source: node1.data.id,
-		target: node2.data.id
+		source: source,
+		target: target
 	};
 	
 	this.scene.addChild(edge);
@@ -274,10 +275,57 @@ GraphGL.prototype.render = function() {
 	this.last_render = new_render;
 }
 
-GraphGL.prototype.init = function(data, importer) {
+GraphGL.prototype.start = function(dataUrl, importType) {
+	// Load data and initialize when ready - overload if you have something else then JSON
+	jQuery.getJSON(dataUrl, function(data) {
+		
+	});
+}
+
+GraphGL.prototype.initialize = function() {
 	var that = this;
 	
-	this.graph = importer.call(this, data);
+	// this.graph = importer.call(this, data);
+	// console.log("load called");
+	if (import_type == "json") {
+		// console.log("type json");
+		this.import_worker = new Worker("../../import-json.js");
+		this.import_worker.postMessage(data);
+		
+		this.import_worker.onmessage = function(msg) {
+			console.log("import worker: ", msg.data);
+			var data = msg.data;
+			
+			// var graph = new Graph();
+			
+			for(var n in data.nodes) {
+				// console.log(n, data.nodes[n]);
+				that.graph.nodes[n] = that.graph.node.call(that, {
+					id: n,
+					label: data.nodes[n]
+				});
+				
+			}
+			// console.log(that.graph.nodes, that.graph);
+			
+			for(var e in data.edges) {
+				var edge = data.edges[e];
+				that.graph.edges[e] = that.graph.arcEdge.call(that, edge.source, edge.target);
+			}
+			// that.graph = graph;
+			
+			that.layout_worker.postMessage(function() {
+				console.log(that.graph);
+				// return that.options.layoutSend.call(that);
+			}());
+		}
+		
+		this.import_worker.onerror = function(event) {
+			console.log("event.message: ", event.message);
+			// event.preventDefault();
+		}
+	}
+	
 	// this.import_worker = new Worker(this.options.importer);
 	// this.import_worker.postMessage(this.options.import_data);
 	
@@ -286,9 +334,9 @@ GraphGL.prototype.init = function(data, importer) {
 	// };
 	
 	this.layout_worker = new Worker(this.options.layout);
-	this.layout_worker.postMessage(function() {
-		return that.options.layoutSend.call(that);
-	}());
+	// this.layout_worker.postMessage(function() {
+	// 		return that.options.layoutSend.call(that);
+	// 	}());
 
 	this.layout_worker.onmessage = function(msg) {
 		that.options.layoutUpdate.call(that, msg.data);
