@@ -8,8 +8,6 @@
 	<script type="text/javascript" charset="utf-8" src="../../three.js/build/Three.js"></script>
 	
 	<script type="text/javascript" charset="utf-8" src="../../GraphGL.js"></script>
-	<script type="text/javascript" charset="utf-8" src="../../import-json.js"></script>
-
 
 <script id="node-vertexShader" type="x-shader/x-vertex" charset="utf-8">
 #ifdef GL_ES
@@ -150,7 +148,7 @@ $(document).ready(function(){
 	// var data = [];
 	var width = 600, height = 500;
 	
-	var dataurl = "examples/twitter-followers/urbanskudnik.json";
+	var dataurl = "urbanskudnik.json";
 	
 	// var dataimporter = "../../import_json.js";
 	// var url = "file:///Users/urbanskudnik/Dev/GraphGL/examples/example-2-gexf.html";
@@ -215,6 +213,7 @@ $(document).ready(function(){
 	
 	var graphgl = new GraphGL(options);
 	
+	// We need a completly stand-by-itself function, otherwise bad things start to happen. Bug?
 	function animate() {
 		requestAnimFrame(animate);
 		graphgl.render();
@@ -236,7 +235,7 @@ $(document).ready(function(){
 	// 				
 	// 	}).error(function(e) { console.log("error - ", e); });
 	
-	graphgl.load(dataurl, "json");
+	graphgl.start(dataurl);
 	
 	var endall = Date.now();
 	

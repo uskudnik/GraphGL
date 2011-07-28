@@ -2,6 +2,8 @@ GraphGL
 
 Visualizing graphs with WebGL, since 2011
 
+WARNING: CODE IS IN CONSTANT DEVELOPMENT - EXAMPLES ARE REGULARLY BROKEN
+
 Usage:
 
 1. git clone git@github.com:uskudnik/GraphGL.git

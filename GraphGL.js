@@ -10,6 +10,72 @@ window.requestAnimFrame = (function(){
           };
 })();
 
+// Fast data structures: http://blog.jcoglan.com/2010/10/18/i-am-a-fast-loop/
+Table = function() {
+	this._keys = [];
+	this._data = {};
+};
+ 
+Table.prototype.put = function(key, value) {
+	if (!this._data.hasOwnProperty(key)) this._keys.push(key);
+	this._data[key] = value;
+};
+ 
+Table.prototype.forEach = function(block, context) {
+	var keys = this._keys,
+		data = this._data,
+		i = keys.length,
+		key;
+ 
+	while (i--) {
+		key = keys[i];
+		block.call(context, key, data[key]);
+	}
+};
+
+SortedTable = function() {
+	Table.call(this);
+};
+SortedTable.prototype = new Table();
+ 
+SortedTable.prototype.put = function(key, value) {
+	if (!this._data.hasOwnProperty(key)) {
+		var index = this._indexOf(key);
+		this._keys.splice(index, 0, key);
+	}
+	this._data[key] = value;
+};
+
+SortedTable.prototype.get = function(key) {
+	if (!this._data.hasOwnProperty(key)) return;
+	return this._data[key];
+}
+ 
+SortedTable.prototype.remove = function(key) {
+	if (!this._data.hasOwnProperty(key)) return;
+	delete this._data[key];
+	var index = this._indexOf(key);
+	this._keys.splice(index, 1);
+};
+ 
+SortedTable.prototype._indexOf = function(key) {
+	var keys = this._keys,
+		n = keys.length,
+		i = 0,
+		d = n;
+ 
+	if (n === 0) return 0;
+	if (key < keys[0]) return 0;
+	if (key > keys[n-1]) return n;
+ 
+	while (key !== keys[i] && d > 0.5) {
+		d = d / 2;
+		i += (key > keys[i] ? 1 : -1) * Math.round(d);
+		if (key > keys[i-1] && key < keys[i]) d = 0;
+	}
+	return i;
+};
+
 
 function GraphGL(options) {
 	var that = this; // needed due to a couple of clousers
@@ -29,10 +95,10 @@ function GraphGL(options) {
 	}
 		
 	this.graph = new Graph();
-	this.layout_worker;
+	this.layoutWorker;
 	
 	this.events = {};
-	this.rendering_started = false;
+	this.renderingStarted = false;
 	this.last_render = new Date();
 		
 	var VIEW_ANGLE = 45,
@@ -275,83 +341,346 @@ GraphGL.prototype.render = function() {
 	this.last_render = new_render;
 }
 
-GraphGL.prototype.start = function(dataUrl, importType) {
+GraphGL.prototype.start = function(dataUrl) {
 	// Load data and initialize when ready - overload if you have something else then JSON
-	jQuery.getJSON(dataUrl, function(data) {
-		
-	});
-}
-
-GraphGL.prototype.initialize = function() {
 	var that = this;
-	
-	// this.graph = importer.call(this, data);
-	// console.log("load called");
-	if (import_type == "json") {
-		// console.log("type json");
-		this.import_worker = new Worker("../../import-json.js");
-		this.import_worker.postMessage(data);
-		
-		this.import_worker.onmessage = function(msg) {
-			console.log("import worker: ", msg.data);
-			var data = msg.data;
-			
-			// var graph = new Graph();
-			
+	console.log(dataUrl);
+	jQuery.ajax({
+		url: dataUrl,
+		type: "GET",
+		dataType: "json",
+		success: function(data) {
+			console.log("data init");
+			that.graphData = data;
+			that.graph = new Graph();
+			// console.log(data);
 			for(var n in data.nodes) {
 				// console.log(n, data.nodes[n]);
+		
 				that.graph.nodes[n] = that.graph.node.call(that, {
 					id: n,
 					label: data.nodes[n]
 				});
-				
 			}
-			// console.log(that.graph.nodes, that.graph);
 			
 			for(var e in data.edges) {
 				var edge = data.edges[e];
 				that.graph.edges[e] = that.graph.arcEdge.call(that, edge.source, edge.target);
 			}
-			// that.graph = graph;
 			
-			that.layout_worker.postMessage(function() {
-				console.log(that.graph);
-				// return that.options.layoutSend.call(that);
-			}());
+			that.initialize();
+		},
+		error: function(jqXHR, textStatus, errorThrown) {
+			if (console && console.log)
+				console.log("Error: ", jqXHR, textStatus, errorThrown);
 		}
+	});
+	
+	return this;
+}
+
+GraphGL.prototype.initialize = function() {
+	// After initial data has been loaded and models built, we can start calculating layout and rendering
+	console.log("initialize");
+	
+	var that = this;
+	
+	// VALID, but for the time being lets do it in the main thread
+	// this.layoutWorker = new Worker(this.options.layout);
+	// 	this.layoutWorker.postMessage(function() {
+	// 			return that.options.layoutSend.call(that);
+	// 	}());
+	// 
+	// 	this.layoutWorker.onmessage = function(msg) {
+	// 		that.options.layoutUpdate.call(that, msg.data);
+	// 		
+	// 		if (!that.renderingStarted) {
+	// 			console.log("got back data");
+	// 			that.renderingStarted = true;
+	// 			that.animate();
+	// 		}
+	// 	};
+	// 	
+	// 	this.layoutWorker.onerror = function(event) {
+	// 	    console.log(event.message + " (" + event.filename + ":" + event.lineno + ")");
+	// 	};
+	
+	var hgraph = new HGraph();
+	hgraph.nodes = new SortedTable();
+	
+	// console.log(hgraph);
+	for(var n in this.graphData.nodes) {
+		// console.log(this.graphData.nodes);
+		var node = {
+			id: n,
+			data: this.graphData.nodes[n],
+			edges: [],
+			degree: 0,
+			nodeData: new Vector(n/10000, n/5000, false),
+			layoutData: {
+				dx: 0,
+				dy: 0,
+				old_dx: 0,
+				old_dy: 0,
+				freeze: 0
+			}
+		};
+		hgraph.nodes.put(n, node);
+	}
+	
+	var i = this.graphData.edges.length;
+	hgraph.edges = [];
+	while(i--) {
+		var e = this.graphData.edges[i];
+		e.weight = 1;
+		hgraph.edges.push(e);
+	}
+	
+	var pfa = new ParallelForceAtlas(hgraph);
+	pfa.iter();
+	
+	return this;
+}
+
+function HGraph() {}
+// HGraph.prototype.nodes = new SortedTable();
+// HGraph.prototype.edges = [];
+// HGraph.prototype.node = {};
+
+function ParallelForceAtlas(graphData) {
+	
+	this.inertia = 0.1;
+	this.repulsionStrength = 200;
+	this.attractionStrength = 10;
+	this.maxDisplacement = 10;
+	this.freezeBalance = true;
+	this.freezeStrength = 80;
+	this.freezeInertia = 0.2;
+	this.gravity = 30;
+	this.speed = 1;
+	this.cooling = 1;
+	this.outboundAttractionDistribution = false;
+	this.adjustSizes = false;
+	this.timeInterval;
+	this.runParallel = true;
+	this.nbThreads = 2; // number of cores
+	
+	// console.log(graphData);
+	
+	this.nodes = graphData.nodes;
+	this.edges = graphData.edges;
+	
+	var i = this.edges.length;
+	while(i--) {
+		this.nodes.get(this.edges[i].source).edges.push(this.edges[i].target);
+		this.nodes.get(this.edges[i].source).degree += 1;
+	}
+	
+	// undirected graph - need to add +1 for degree for those that aren't pointing back. check data exporter!
+	// this.nodes.forEach(function(key, obj) {
+	// 	var i = obj.edges.length;
+	// 	
+	// });
+};
+
+/* Vector utilities */
+function Vector(x, y, fixed) {
+	this.x = x;
+	this.y = y;
+	this.fixed = fixed;
+}
+
+Vector.prototype.add = function(v) {
+	this.x += v.x;
+	this.y += v.y;
+}
+
+Vector.prototype.multiply = function(n) {
+	this.x *= n;
+	this.y *= n;
+}
+
+Vector.prototype.substract = function(v) {
+	this.x -= v.x;
+	this.y -= v.y;
+}
+
+Vector.prototype.getEnergy = function() {
+	return Math.pow(this.x, 2) + Math.pow(this.y, 2);
+}
+
+Vector.prototype.getNorm = function() {
+	return Math.sqrt(this.getEnergy());
+}
+
+Vector.prototype.normalize = function() {
+	var norm = this.getNorm();
+	return Vector(this.x / norm, this.y / n);
+}
+
+/* Extend Math */
+Math.hypot = function(v1, v2) {
+	// Since Javascript is stupid regarding numbers, we implement it (by wikipedia: http://en.wikipedia.org/wiki/Hypot)
+	
+	var x = v1.x - v2.x;
+	var y = v1.y - v2.y;
+	if (Math.abs(x) < Math.abs(y)) {
+		var ox = x; //old x
+		x = y;
+		y = ox;
+	}
+	return Math.abs(x) * Math.sqrt(1 + Math.pow(y/x, 2));
+}
+
+/* Force utilities */
+function ForceVectorUtils() {}
+ForceVectorUtils.distance = function(n1, n2) {
+	return Math.hypot(n1.nodeData, n2.nodeData);
+}
+
+ForceVectorUtils.repulsion = function(c, dist) {
+	return 0.001 * c / dist;
+}
+
+ForceVectorUtils.attraction = function(c, dist) {
+	return 0.01 * -c * dist;
+}
+
+ForceVectorUtils.fcBiRepulsor = function(n1, n2, c) {
+	var xDist = n1.nodeData.x - n2.nodeData.x;
+	var yDist = n1.nodeData.y - n2.nodeData.y;
+	var dist = Math.sqrt(Math.pow(xDist, 2) + Math.pow(yDist, 2));
+	
+	if (dist > 0) {
+		var f = this.repulsion(c, dist);
 		
-		this.import_worker.onerror = function(event) {
-			console.log("event.message: ", event.message);
-			// event.preventDefault();
+		n1.layoutData.dx += xDist / dist * f;
+		n1.layoutData.dy += yDist / dist * f;
+		
+		n2.layoutData.dx -= xDist / dist * f;
+		n2.layoutData.dy -= yDist / dist * f;
+	}
+}
+
+ForceVectorUtils.fcBiAttractor = function(n1, n2, c) {
+	var xDist = n1.nodeData.x - n2.nodeData.x;
+	var yDist = n1.nodeData.y - n2.nodeData.y;
+	var dist = Math.sqrt(Math.pow(xDist, 2) + Math.pow(yDist, 2));
+
+	if (dist > 0) {
+		f = this.attraction(c, dist);
+		
+		n1.layoutData.dx += xDist / dist * f;
+		n1.layoutData.dy += yDist / dist * f;
+		
+		n2.layoutData.dx -= xDist / dist * f;
+		n2.layoutData.dy -= yDist / dist * f;		
+	}
+}
+
+/* Iteration loop */
+ParallelForceAtlas.prototype.iter = function() {
+	this.timeInterval = 100;
+	var that = this;
+	
+	var start = Date.now();
+	
+	// console.log(this.nodes);
+	this.nodes.forEach(function(key, obj){
+		// console.log("data: ", key, value);
+		obj.layoutData.old_dx = obj.layoutData.dx;
+		obj.layoutData.old_dy = obj.layoutData.dy;
+		
+		obj.layoutData.dx *= this.inertia;
+		obj.layoutData.dy *= this.inertia;
+	});
+	
+	// Repulsion
+	if (this.adjustSizes) {
+		// use fcbirepulsor no collide
+	} else {
+		// use fcbi repulsor
+		that.nodes.forEach(function(key1, node1){
+			that.nodes.forEach(function(key2, node2){
+				// console.log(key1, key2);
+				ForceVectorUtils.fcBiRepulsor(node1, node2, that.repulsionStrength * (1 + node1.degree) * (1 + node2.degree));
+			});
+		});
+	};
+	
+	// Attraction
+	if (this.adjustSizes) {
+		// use fcbiattractor no collide
+	} else {
+		if (this.outboundAttractionDistribution) {
+			// bze, default false
+		} else {
+			var i = this.edges.lenght;
+			while(i--) {
+				var e = this.edges[i];
+				var ns = this.nodes.get(e.source);
+				var nt = this.nodes.get(e.target);
+				
+				var bonus = (ns.nodeData.fixed || ns.nodeData.fixed) ? 100 : 1;
+				// TODO: should support time interval!!
+				bonus *= e.weight;
+				ForceVectorUtils.fcBiAttractor(ns, nt, bonus * this.attractionStrength);
+			}
 		}
 	}
 	
-	// this.import_worker = new Worker(this.options.importer);
-	// this.import_worker.postMessage(this.options.import_data);
-	
-	// this.import_worker.onmessage = function(msg) {
-	// 	console.log("from import worker: ", msg.data);
-	// };
-	
-	this.layout_worker = new Worker(this.options.layout);
-	// this.layout_worker.postMessage(function() {
-	// 		return that.options.layoutSend.call(that);
-	// 	}());
-
-	this.layout_worker.onmessage = function(msg) {
-		that.options.layoutUpdate.call(that, msg.data);
+	// Gravity
+	that.nodes.forEach(function(key, node){
+		var nx = node.nodeData.x;
+		var ny = node.nodeData.y;
+		var d = 0.0001 + Math.sqrt(nx * nx + ny * ny);
+		var gf = 0.0001 * that.gravity * d;
 		
-		if (!that.rendering_started) {
-			that.rendering_started = true;
-			that.animate();
+		node.layoutData.dx -= gf * nx / d;
+		node.layoutData.dy -= gf * ny / d;
+	});
+	
+	// Speed
+	if (this.freezeBalance) {
+		that.nodes.forEach(function(key, node){
+			node.dx *= this.speed * 10;
+			node.dy *= this.speed * 10;
+		});
+	} else {
+		that.nodes.forEach(function(key, node){
+			node.dx *= this.speed;
+			node.dy *= this.speed;
+		});
+	}
+	
+	// Apply forces
+	that.nodes.forEach(function(key, node){
+		var nData = node.nodeData;
+		var layData = node.layoutData;
+		
+		if(!nData.fixed) {
+			d = 0.0001 + Math.sqrt(layData.dx * layData.dx + layData.dy * layData.dy);
+			var ratio;
+			
+			if(that.freezeBalance) {
+				layData.freeze = that.freezeInertia * layData.freeze + (1 - that.freezeInertia) * 0.1 * that.freezeStrength * (Math.sqrt(Math.sqrt((layData.old_dx - layData.dx) * (layData.old_dx - layData.dx) + (layData.old_dy - layData.dy) * (layData.old_dy - layData.dy))));
+				ratio = Math.min((d / (d * (1 + layData.freeze))), this.maxDisplacement / d);
+			} else {
+				ratio = Math.min(1, this.maxDisplacement / d);
+			}
+			
+			layData.dx *= ratio / this.cooling;
+			layData.dy *= ratio / this.cooling;
+			nData.x = nData.x + layData.dx;
+			nData.y = nData.y + layData.dy;
 		}
-	};
+	});
+
 	
-	this.layout_worker.onerror = function(event) {
-	    console.log(event.message + " (" + event.filename + ":" + event.lineno + ")");
-	};
+	console.log(this.nodes);
+	var endall = Date.now();
 	
-	return this;
+	console.log("ParallelForceAtlas execution time: ", (endall-start)/1000);
 }
 
 
