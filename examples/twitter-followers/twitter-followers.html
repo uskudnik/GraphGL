@@ -152,7 +152,7 @@ $(document).ready(function(){
 	
 	// var dataimporter = "../../import_json.js";
 	// var url = "file:///Users/urbanskudnik/Dev/GraphGL/examples/example-2-gexf.html";
-	var layout = "../force_directed.js";
+	var layout = "../../ForceAtlas.js";
 	
 	// var ni = 0; // number of iterations 
 	
@@ -164,50 +164,7 @@ $(document).ready(function(){
 		},
 		width: width,
 		height: height,
-		layout: layout,
-		layoutSend: function() {			
-			var worker_data = {
-				options: {
-					width: this.options.width,
-					height: this.options.height
-				}
-			};
-			
-			var gnodes = this.graph.nodes;
-			var gedges = this.graph.edges;
-			
-			worker_data.nodes = {};
-			worker_data.edges = {};
-			for (var ni in gnodes) {
-				worker_data.nodes[ni] = gnodes[ni].data;
-			}
-			
-			for (var ei in gedges) {
-				worker_data.edges[ei] = gedges[ei].data;
-			}
-			
-			// console.log("worker data: ", worker_data);
-			return worker_data;
-		},
-		layoutUpdate: function(data) {
-			// console.log("ggl init", data);
-
-			mx = this.options.width - 100;
-			my = this.options.height - 100;
-
-			var bb = data.bounding_box;
-			for (var nindex in data.nodes) {
-				node = data.nodes[nindex];
-				
-				var x = (node.x)/(bb.topright.x-bb.bottomleft.x)*mx;
-				var y = (node.y)/(bb.topright.y-bb.bottomleft.y)*my;
-				
-				this.graph.nodes[nindex].data.x = x;
-				this.graph.nodes[nindex].data.y = y; 
-			}
-			
-			// this.graph.updated = true;
-		}
+		layout: layout
 	};
 	
 	
