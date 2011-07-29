@@ -210,6 +210,7 @@ function ParallelForceAtlas(graphData) {
 	// 	
 	// });
 	
+	this.nodes.maxDegree = 0;	
 	var that = this;
 	
 	this.nodes.forEach(function(key, node){
@@ -219,6 +220,10 @@ function ParallelForceAtlas(graphData) {
 		
 		node.layoutData.dx *= that.inertia;
 		node.layoutData.dy *= that.inertia;
+		
+		if (node.degree > that.nodes.maxDegree) {
+			that.nodes.maxDegree = node.degree;
+		}
 	});
 };
 
@@ -335,7 +340,7 @@ ParallelForceAtlas.prototype.iter = function() {
 	// console.log(this.nodes);
 	var endall = Date.now();
 	
-	graph.nodes.iterTime = (endall-start)/1000;
+	graph.nodes.iterTime = (endall-start);
 	// console.log("ParallelForceAtlas execution time per iteration: "+(endall-start)/1000);
 	
 	postMessage(graph.nodes);

@@ -36,6 +36,7 @@ varying vec2 vUv;
 void main() {
 	vec2 pos = vUv;
 	
+	// gl_FragColor = vec4(0.0, 0.0, 1.0, 0.7);
 	float dr = 0.05;
 	float doff = 0.5;
 	float rmax = pow(doff, 2.0);
@@ -171,9 +172,18 @@ $(document).ready(function(){
 	var graphgl = new GraphGL(options);
 	
 	// We need a completly stand-by-itself function, otherwise bad things start to happen. Bug?
+	var fps = 0;
+	var frameTimer = new Date();
+	
 	function animate() {
+		fps += 1
+		$("#fps").text(fps/((new Date() - frameTimer)/1000));
 		requestAnimFrame(animate);
 		graphgl.render();
+		if ((new Date() - frameTimer)/1000 > 1 ) {
+			frameTimer = new Date();
+			fps = 0;
+		}
 	}
 	
 	graphgl.animate = animate;
@@ -202,6 +212,7 @@ $(document).ready(function(){
 </head>
 
 <body>
+<div id="fps"></div>
 <div id="canvas"></div>
 </body>
 </html>

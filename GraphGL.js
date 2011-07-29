@@ -46,7 +46,13 @@ function GraphGL(options) {
 				// this.graph.nodes[key].data.y = y;
 				this.graph.nodes[key].position.x = x;
 				this.graph.nodes[key].position.y = y;
+				
+				if(this.firstFrame) {
+					var scale = Math.max(5, 30*node.degree/data.maxDegree);
+					this.graph.nodes[key].scale = new THREE.Vector3(scale, scale, scale);
+				}
 			}
+			this.firstFrame = false;
 		}
 	}
 		
@@ -59,7 +65,9 @@ function GraphGL(options) {
 	this.layoutWorker;
 	
 	this.events = {};
+	
 	this.renderingStarted = false;
+	this.firstFrame = true;
 	
 	this.last_render = new Date();
 	this.iterTime;
@@ -239,7 +247,7 @@ Graph.prototype.arcEdge = function(source, target) {
 	return edge; 
 }
 
-GraphGL.prototype.render = function() {
+GraphGL.prototype.render = function() {	
 	var new_render = new Date();
 	
 	// 100ms is interval between calculations - should be specified in options/with algorithms?
