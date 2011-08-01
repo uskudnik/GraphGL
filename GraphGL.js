@@ -81,6 +81,7 @@ function GraphGL(options) {
 	
 	this.renderer = new THREE.WebGLRenderer({
 		clearColor: this.options.canvas.backgroundColor,
+		antialias: true
 	});
 	this.renderer.setSize(this.options.width, this.options.height);	
 	jQuery(this.options.canvas.canvasId).append(this.renderer.domElement);
@@ -95,8 +96,8 @@ function GraphGL(options) {
 	
 	this.scene = new THREE.Scene();
 	
-	// our basic geometry
-	this.node_geometry = new THREE.Plane(1, 1, 1, 1);
+	// Basic geometry
+	this.node_geometry = new THREE.PlaneGeometry(1, 1, 1, 1);
 	
 	this.node_material = new THREE.MeshShaderMaterial({
 		vertexShader: $("#node-vertexShader").text(),
@@ -107,6 +108,10 @@ function GraphGL(options) {
 		vertexShader: $("#edge-vertexShader").text(),
 		fragmentShader: $("#edge-fragmentShader").text()
 	});
+	
+	// Master geometries	
+	this.Edges = new THREE.Line(new THREE.Geometry(), new THREE.LineBasicMaterial( { color: 0xff0000, opacity: 0.2, linewidth: 1} ), THREE.LinePieces);
+	this.Edges.edges = [];
 		
 	// Events
 	this.events.mouse = {};
@@ -207,29 +212,29 @@ Graph.prototype.node = function(data) {
 	);
 	
 	this.scene.addChild(node);
-	// node.data = {};
 	node.data = data;
 	
-	// console.log("returning node: ", node);
 	return node;
 };
 
 Graph.prototype.lineEdge = function(source, target) {
-	var lineMat = new THREE.LineBasicMaterial( { color: 0xff0000, opacity: 0.2, linewidth: 1} );
+	// var lineMat = new THREE.LineBasicMaterial( { color: 0xff0000, opacity: 0.2, linewidth: 1} );
 	
-	var lineGeo = new THREE.Geometry();
-	lineGeo.vertices.push(new THREE.Vertex());
-	lineGeo.vertices.push(new THREE.Vertex());
+	// var lineGeo = new THREE.Geometry();
+	this.Edges.geometry.vertices.push(new THREE.Vertex());
+	this.Edges.geometry.vertices.push(new THREE.Vertex());
+	
+	this.Edges.edges.push({source: source, target: target});
 
-	var edge = new THREE.Line(lineGeo, lineMat);
-	this.scene.addObject( edge );
+	// var edge = new THREE.Line(lineGeo, lineMat);
+	// this.scene.addObject( edge );
 	
-	edge.data = {
-		source: source,
-		target: target
-	};
-	
-	return edge; 
+	// edge.data = {
+	// 		source: source,
+	// 		target: target
+	// 	};
+	// 	
+	// return ; 
 }
 
 Graph.prototype.arcEdge = function(source, target) {	
@@ -266,7 +271,7 @@ GraphGL.prototype.render = function() {
 	// 		// console.log("position: ", node.position.x, node.position.y);
 	// 	}
 	
-	var e = this.graph.edges;
+	// var e = this.graph.edges;
 	// for (var eindex in e) {
 	// 		var src = e[eindex].data.source;
 	// 		var trg = e[eindex].data.target;
@@ -306,20 +311,22 @@ GraphGL.prototype.render = function() {
 	// 		};
 	// }
 	
-	for (var eindex in e) {
-			var src = e[eindex].data.source;
-			var trg = e[eindex].data.target;
+	var edges = this.Edges.edges;
+	var i = edges.length;
+	while (i--) {
+		var src = edges[i].source;
+		var trg = edges[i].target;
+		
+		var nsrc = this.graph.nodes[src];
+		var ntrg = this.graph.nodes[trg];
+		
+		var isrc = i*2;
+		var itrg = i*2+1;
+		
+		this.Edges.geometry.vertices[isrc].position = nsrc.position;
+		this.Edges.geometry.vertices[itrg].position = ntrg.position;
 			
-			var nsrc = this.graph.nodes[src];
-			var ntrg = this.graph.nodes[trg];
-			
-			ethis = e[eindex]; // current edge
-			
-			// For line
-			ethis.geometry.vertices[0].position = nsrc.position;				
-			ethis.geometry.vertices[1].position = ntrg.position;
-
-			ethis.geometry.__dirtyVertices = true;
+		this.Edges.geometry.__dirtyVertices = true;
 	}
 	
 	
@@ -341,8 +348,6 @@ GraphGL.prototype.start = function(dataUrl) {
 			that.graph = new Graph();
 			// console.log(data);
 			for(var n in data.nodes) {
-				// console.log(n, data.nodes[n]);
-		
 				that.graph.nodes[n] = that.graph.node.call(that, {
 					id: n,
 					label: data.nodes[n]
@@ -357,8 +362,10 @@ GraphGL.prototype.start = function(dataUrl) {
 			} else if (that.options.edges.type == "line") {
 				for(var e in data.edges) {
 					var edge = data.edges[e];
-					that.graph.edges[e] = that.graph.lineEdge.call(that, edge.source, edge.target);
+					that.graph.lineEdge.call(that, edge.source, edge.target);
 				}
+				
+				that.scene.addObject(that.Edges);
 			}
 			
 			that.initialize();
