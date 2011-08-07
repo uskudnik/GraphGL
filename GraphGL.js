@@ -136,8 +136,8 @@ function GraphGL(options) {
 	
 	$(this.renderer.domElement).mousemove(function(ev){
 		if (that.events.mouse.down){			
-			var difX = (-1)*(ev.pageX - that.events.mouse.position.x);
-			var difY = (ev.pageY - that.events.mouse.position.y);
+			var difX = (-1)*(ev.pageX - that.events.mouse.position.x)*(that.camera.position.z/viewField);
+			var difY = (ev.pageY - that.events.mouse.position.y)*(that.camera.position.z/viewField);
 			
 			that.camera.translateX(difX);
 			that.camera.translateY(difY);
@@ -229,50 +229,20 @@ function GraphGL(options) {
 			// var radius = node.geometry.boundingSphere.radius * node.scale.x;
 			// var radius = node.boundRadiusScale;
 			// console.log(radius);
-			var distance = node.position.distanceTo(clickPosition);
-			var	distance2 = node.position.distanceTo(cp);
+			// var distance = node.position.distanceTo(clickPosition);
+			var	distance = node.position.distanceTo(cp);
 			// console.log(distance);
 			
 			
 			// that.camera.position.z/viewField
-			if (distance2 < node.boundRadiusScale*(1)) {
-				console.log(distance, distance2);
+			if (distance < node.boundRadiusScale*(1)) {
 				console.log("INTERSEKT!", node);
 				console.log("nodepos: ", node.position.x, node.position.y);
 				// console.log("nodescale: ", radius);
 				node.materials[0].uniforms.color.value.z = 1;
-				node.scale = new THREE.Vector3(node.scale.x*1.2,
-												node.scale.x*1.2,
-												node.scale.x*1.2);
-				// that.node_material.attributes.nodeColor.value[5].z = 1;
-				// that.node_material.attributes.nodeColor.value[100].z = 1;
-				
-				// console.log(that.node_material.attributes.nodeColor);
-				// for(var i=0; i<10;i++){
-					// console.log(that.node_material.attributes.nodeColor.value[i].z);
-					// that.node_material.attributes.nodeColor.value[i] = new THREE.Vector3().set(1, 1, 0);
-				// }
-				// that.node_material.attributes.nodeColor.needsUpdate = true;				
-			}
-			// console.log(node.matrixWorld.getPosition());
-			// console.log(node);
-			// console.log(node.geometry.boundingSphere.radius);
-			// ray.intersectObject( node )
-			// console.log(ray.intersectObject(node));
-			// intersects = intersects.concat( ray.intersectObject(node));
-			// nodepositionsx.push(node.position.x);
-			// nodepositionsy.push(node.position.y);
-			// break;
 			
+			}			
 		}
-		
-		console.log("--------------------------------");
-		// console.log(ray);
-		// console.log(intersects);
-		// console.log(nodepositionsx.sort());
-		// console.log(nodepositionsy.sort());
-		// console.log(that.options.width);
-		
 	});
 	
 	// Said to be better for performance
