@@ -100,13 +100,6 @@ function GraphGL(options) {
 	// Basic geometry
 	this.node_geometry = new THREE.PlaneGeometry(1, 1, 1, 1);
 	
-	this.nodeAttributes = {
-		nodeColor: {
-			type: "v3",
-			value: []
-		}
-	};
-	
 	// this.node_material = new THREE.MeshShaderMaterial({
 	// 	vertexShader: $("#node-vertexShader").text(),
 	// 	fragmentShader: $("#node-fragmentShader").text()
@@ -120,6 +113,9 @@ function GraphGL(options) {
 	// Master geometries	
 	this.Edges = new THREE.Line(new THREE.Geometry(), new THREE.LineBasicMaterial( { color: 0xff0000, opacity: 0.2, linewidth: 1} ), THREE.LinePieces);
 	this.Edges.edges = [];
+	
+	this.connectedEdges = new THREE.Line(new THREE.Geometry(), new THREE.LineBasicMaterial( { color: 0x00ff00, opacity: 1.0, linewidth: 2} ), THREE.LinePieces);
+	this.connectedEdges.edges = [];
 		
 	// Events
 	this.events.mouse = {};
@@ -180,75 +176,47 @@ function GraphGL(options) {
 	this.projector = new THREE.Projector();
 	$(this.renderer.domElement).click(function(ev){
 		clickPosition = new THREE.Vector3(ev.pageX, ev.pageY, that.camera.position.z);
-		// console.log("r0: ", that.options.r0.x, that.options.r0.y);
-		// var o = $(this).offset();
-		// rendererOffset = new THREE.Vector3(o.left, o.top, that.camera.position.z);
-		
-		// console.log("pre: ", clickPosition.x, clickPosition.y, clickPosition.z);
-		// clickPosition.subSelf(new THREE.Vector3(that.options.r0.x, that.options.r0.y, that.camera.position.z));
 		
 		clickPosition.subSelf(that.options.r0);
 		// To invert y axis
 		clickPosition.multiplySelf({x: 1, y: -1, z: 1});
-		// console.log("after r0: ", clickPosition.x, clickPosition.y, clickPosition.z);
-		// return;
-		
-		// clickPosition.multiplySelf({x: that.camera.position.z/viewField,
-		// 							y: that.camera.position.z/viewField,
-		// 							z: 1});
-		
-		// console.log(viewField);
-		
-		console.log("org: ", clickPosition.x, clickPosition.y, clickPosition.z);
-		
 
-		
-		// that.projector.unprojectVector(clickPosition, that.camera);
-		// console.log("unproj: ", clickPosition.x, clickPosition.y);
-		
-		// var ray = new THREE.Ray(that.camera.position, clickPosition.subSelf(that.camera.position).normalize());
 		var cp = new THREE.Vector3().add(that.camera.position, clickPosition.clone().multiplyScalar(that.camera.position.z/viewField));
+		
+		// Move to correct plane
 		cp.z = 0;
-		console.log("cp: ", cp.x, cp.y, cp.z);
 		
 		clickPosition.subSelf(that.camera.position);
-		console.log("cam:", that.camera.position.x, that.camera.position.y, that.camera.position.z);
-		console.log("after cam: ", clickPosition.x, clickPosition.y, clickPosition.z);
 		
-		
-		// console.log(that.graph.nodes);
-		// var intersects = ray.intersectObjects(that.graph.nodes);
-		
-		var intersects = [];
-		// var intersects = ray.intersectScene( that.scene );
-		var nodepositionsx = [];
-		var nodepositionsy = [];
 		for(var obji in that.graph.nodes) {
 			var node = that.graph.nodes[obji];
-			// console.log(node.position.x, node.position.y);
-			// var radius = node.geometry.boundingSphere.radius * node.scale.x;
-			// var radius = node.boundRadiusScale;
-			// console.log(radius);
-			// var distance = node.position.distanceTo(clickPosition);
 			var	distance = node.position.distanceTo(cp);
-			// console.log(distance);
 			
-			
-			// that.camera.position.z/viewField
-			if (distance < node.boundRadiusScale*(1)) {
-				console.log("INTERSEKT!", node);
-				console.log("nodepos: ", node.position.x, node.position.y);
-				// console.log("nodescale: ", radius);
+			if (distance < node.boundRadiusScale) {
+				console.log("Intersect: ", node);
+				// console.log("nodepos: ", node.position.x, node.position.y);
 				node.materials[0].uniforms.color.value.z = 1;
-			
+				
+				var i = that.Edges.edges.length;
+				while(i--) {
+					var edge = that.Edges.edges[i];
+					if (edge.source == node.data.id) {		
+						that.connectedEdges.geometry.vertices.push(new THREE.Vector3());
+						that.connectedEdges.geometry.vertices.push(new THREE.Vector3());
+						
+						that.connectedEdges.edges.push(edge);
+					}
+				}
+				
+				that.scene.addObject(that.connectedEdges);
+				// console.log(that.Edges);
+				// console.log(that.connectedEdges);			
 			}			
 		}
 	});
 	
 	// Said to be better for performance
-	this.pointLight = new THREE.DirectionalLight(0xFFFFFF);
-	// this.pointLight.position.set(0, 0, 0);
-	
+	this.pointLight = new THREE.DirectionalLight(0xFFFFFF);	
 	this.scene.addLight(this.pointLight);
 }
 
@@ -280,8 +248,8 @@ Graph.prototype.node = function(data) {
 	// 	}
 	// };
 	// console.log(this.nodeAttributes);
-	this.nodeAttributes.nodeColor.value.push(colorVector);
-	console.log(this.node_geometry);
+	// this.nodeAttributes.nodeColor.value.push(colorVector);
+	
 	var node = new THREE.Mesh(
 		this.node_geometry, 
 		new THREE.MeshShaderMaterial({
@@ -422,6 +390,25 @@ GraphGL.prototype.render = function() {
 		this.Edges.geometry.vertices[itrg].position = ntrg.position;
 			
 		this.Edges.geometry.__dirtyVertices = true;
+	}
+	
+	var edges = this.connectedEdges.edges;
+	var i = edges.length;
+	while(i--) {
+		var src = edges[i].source;
+		var trg = edges[i].target;
+		
+		var nsrc = this.graph.nodes[src];
+		var ntrg = this.graph.nodes[trg];
+		
+		// console.log(nsrc, ntrg);
+		var isrc = i*2;
+		var itrg = i*2+1;
+		
+		this.connectedEdges.geometry.vertices[isrc].position = nsrc.position;
+		this.connectedEdges.geometry.vertices[itrg].position = ntrg.position;
+			
+		this.connectedEdges.geometry.__dirtyVertices = true;
 	}
 	
 	
