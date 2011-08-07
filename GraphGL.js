@@ -72,7 +72,7 @@ function GraphGL(options) {
 	this.last_render = new Date();
 	this.iterTime;
 		
-	var VIEW_ANGLE = 45,
+	var	VIEW_ANGLE = 45,
 		viewField = this.options.width / Math.tan(VIEW_ANGLE * Math.PI/180), // Distance, at which entire drawing area is seen
 		ASPECT = this.options.width / this.options.height,
 		NEAR = 0.1; // object close then NEAR wont be seen
@@ -83,6 +83,7 @@ function GraphGL(options) {
 		clearColor: this.options.canvas.backgroundColor,
 		antialias: true
 	});
+	this.renderer.sortObjects = false;
 	this.renderer.setSize(this.options.width, this.options.height);	
 	jQuery(this.options.canvas.canvasId).append(this.renderer.domElement);
 	
@@ -99,10 +100,17 @@ function GraphGL(options) {
 	// Basic geometry
 	this.node_geometry = new THREE.PlaneGeometry(1, 1, 1, 1);
 	
-	this.node_material = new THREE.MeshShaderMaterial({
-		vertexShader: $("#node-vertexShader").text(),
-		fragmentShader: $("#node-fragmentShader").text()
-	});
+	this.nodeAttributes = {
+		nodeColor: {
+			type: "v3",
+			value: []
+		}
+	};
+	
+	// this.node_material = new THREE.MeshShaderMaterial({
+	// 	vertexShader: $("#node-vertexShader").text(),
+	// 	fragmentShader: $("#node-fragmentShader").text()
+	// });
 	
 	this.edge_material = new THREE.MeshShaderMaterial({
 		vertexShader: $("#edge-vertexShader").text(),
@@ -115,12 +123,12 @@ function GraphGL(options) {
 		
 	// Events
 	this.events.mouse = {};
-	this.events.mouse.position = new THREE.Vector2();
+	this.events.mouse.position = new THREE.Vector3();
 	
 	// For dragging around canvas
 	$(this.renderer.domElement).mousedown(function(ev){
 		that.events.mouse.down = true;
-		that.events.mouse.position.set(ev.pageX, ev.pageY);
+		that.events.mouse.position.set(ev.pageX, ev.pageY, 0);
 	});
 	$(this.renderer.domElement).bind("mouseup mouseleave", function(ev){
 		that.events.mouse.down = false;
@@ -138,14 +146,15 @@ function GraphGL(options) {
 		// that.events.mouse.x = ev.pageX;
 		// that.events.mouse.y = ev.pageY;
 		
-		that.events.mouse.position.set(ev.pageX, ev.pageY);
+		that.events.mouse.position.set(ev.pageX, ev.pageY, 0);
 	});
 	
 	// Zooming
 	// Middle of canvas vector
-	this.options.r0 = new THREE.Vector2(
+	this.options.r0 = new THREE.Vector3(
 		$(this.renderer.domElement).offset().left+this.options.width/2,
-		$(this.renderer.domElement).offset().top+this.options.height/2);
+		$(this.renderer.domElement).offset().top+this.options.height/2,
+		0);
 
 	$(this.renderer.domElement).bind("mousewheel DOMMouseScroll",
 		function(ev){						
@@ -154,12 +163,12 @@ function GraphGL(options) {
 			if (ev.DOMMouseScroll) difZ = ev.detail; // Firefox
 			else difZ = ev.wheelDelta;
 
-			console.log(difZ);
-			var r = new THREE.Vector2();
+			// console.log(difZ);
+			var r = new THREE.Vector3();
 			r.sub(that.events.mouse.position, that.options.r0);
 			
 			// Move to mouse cursor - still needs some work		
-			console.log(that.camera.position.z - difZ);
+			// console.log(that.camera.position.z - difZ);
 			if ((that.camera.position.z - difZ) < that.FAR && (that.camera.position.z - difZ) > 100) {
 				that.camera.translateX((difZ / that.camera.position.z)*r.x);
 				that.camera.translateY(-(difZ / that.camera.position.z)*r.y);
@@ -167,8 +176,108 @@ function GraphGL(options) {
 			}
 	});
 	
-	this.pointLight = new THREE.PointLight(0xFFFFFF);
-	this.pointLight.position.set(0, 0, 0);
+	// Interactivity
+	this.projector = new THREE.Projector();
+	$(this.renderer.domElement).click(function(ev){
+		clickPosition = new THREE.Vector3(ev.pageX, ev.pageY, that.camera.position.z);
+		// console.log("r0: ", that.options.r0.x, that.options.r0.y);
+		// var o = $(this).offset();
+		// rendererOffset = new THREE.Vector3(o.left, o.top, that.camera.position.z);
+		
+		// console.log("pre: ", clickPosition.x, clickPosition.y, clickPosition.z);
+		// clickPosition.subSelf(new THREE.Vector3(that.options.r0.x, that.options.r0.y, that.camera.position.z));
+		
+		clickPosition.subSelf(that.options.r0);
+		// To invert y axis
+		clickPosition.multiplySelf({x: 1, y: -1, z: 1});
+		// console.log("after r0: ", clickPosition.x, clickPosition.y, clickPosition.z);
+		// return;
+		
+		// clickPosition.multiplySelf({x: that.camera.position.z/viewField,
+		// 							y: that.camera.position.z/viewField,
+		// 							z: 1});
+		
+		// console.log(viewField);
+		
+		console.log("org: ", clickPosition.x, clickPosition.y, clickPosition.z);
+		
+
+		
+		// that.projector.unprojectVector(clickPosition, that.camera);
+		// console.log("unproj: ", clickPosition.x, clickPosition.y);
+		
+		// var ray = new THREE.Ray(that.camera.position, clickPosition.subSelf(that.camera.position).normalize());
+		var cp = new THREE.Vector3().add(that.camera.position, clickPosition.clone().multiplyScalar(that.camera.position.z/viewField));
+		cp.z = 0;
+		console.log("cp: ", cp.x, cp.y, cp.z);
+		
+		clickPosition.subSelf(that.camera.position);
+		console.log("cam:", that.camera.position.x, that.camera.position.y, that.camera.position.z);
+		console.log("after cam: ", clickPosition.x, clickPosition.y, clickPosition.z);
+		
+		
+		// console.log(that.graph.nodes);
+		// var intersects = ray.intersectObjects(that.graph.nodes);
+		
+		var intersects = [];
+		// var intersects = ray.intersectScene( that.scene );
+		var nodepositionsx = [];
+		var nodepositionsy = [];
+		for(var obji in that.graph.nodes) {
+			var node = that.graph.nodes[obji];
+			// console.log(node.position.x, node.position.y);
+			// var radius = node.geometry.boundingSphere.radius * node.scale.x;
+			// var radius = node.boundRadiusScale;
+			// console.log(radius);
+			var distance = node.position.distanceTo(clickPosition);
+			var	distance2 = node.position.distanceTo(cp);
+			// console.log(distance);
+			
+			
+			// that.camera.position.z/viewField
+			if (distance2 < node.boundRadiusScale*(1)) {
+				console.log(distance, distance2);
+				console.log("INTERSEKT!", node);
+				console.log("nodepos: ", node.position.x, node.position.y);
+				// console.log("nodescale: ", radius);
+				node.materials[0].uniforms.color.value.z = 1;
+				node.scale = new THREE.Vector3(node.scale.x*1.2,
+												node.scale.x*1.2,
+												node.scale.x*1.2);
+				// that.node_material.attributes.nodeColor.value[5].z = 1;
+				// that.node_material.attributes.nodeColor.value[100].z = 1;
+				
+				// console.log(that.node_material.attributes.nodeColor);
+				// for(var i=0; i<10;i++){
+					// console.log(that.node_material.attributes.nodeColor.value[i].z);
+					// that.node_material.attributes.nodeColor.value[i] = new THREE.Vector3().set(1, 1, 0);
+				// }
+				// that.node_material.attributes.nodeColor.needsUpdate = true;				
+			}
+			// console.log(node.matrixWorld.getPosition());
+			// console.log(node);
+			// console.log(node.geometry.boundingSphere.radius);
+			// ray.intersectObject( node )
+			// console.log(ray.intersectObject(node));
+			// intersects = intersects.concat( ray.intersectObject(node));
+			// nodepositionsx.push(node.position.x);
+			// nodepositionsy.push(node.position.y);
+			// break;
+			
+		}
+		
+		console.log("--------------------------------");
+		// console.log(ray);
+		// console.log(intersects);
+		// console.log(nodepositionsx.sort());
+		// console.log(nodepositionsy.sort());
+		// console.log(that.options.width);
+		
+	});
+	
+	// Said to be better for performance
+	this.pointLight = new THREE.DirectionalLight(0xFFFFFF);
+	// this.pointLight.position.set(0, 0, 0);
 	
 	this.scene.addLight(this.pointLight);
 }
@@ -194,13 +303,28 @@ Graph.prototype.node = function(data) {
 		colorVector = this.hexColorToRGB(this.options.nodes.backgroundColor);
 	}
 	
-	this.node_material.uniforms = {
-		color: {
-			type: 'v3',
-			value: colorVector
-		}
-	};
-	var node = new THREE.Mesh(this.node_geometry, this.node_material);
+	// this.node_material.uniforms = {
+	// 	color: {
+	// 		type: 'v3',
+	// 		value: colorVector
+	// 	}
+	// };
+	// console.log(this.nodeAttributes);
+	this.nodeAttributes.nodeColor.value.push(colorVector);
+	console.log(this.node_geometry);
+	var node = new THREE.Mesh(
+		this.node_geometry, 
+		new THREE.MeshShaderMaterial({
+			uniforms: {
+				color: {
+					type: "v3",
+					value: colorVector
+				} 
+			},
+			vertexShader: $("#node-vertexShader").text(),
+			fragmentShader: $("#node-fragmentShader").text()
+	}));
+	// node.dynamic = true;
 	
 	// node.position.x = 0;
 	// node.position.y = 0;
@@ -211,6 +335,7 @@ Graph.prototype.node = function(data) {
 		this.options.nodes.scale
 	);
 	
+	// node.matrixAutoUpdate = false;
 	this.scene.addChild(node);
 	node.data = data;
 	
@@ -257,7 +382,7 @@ GraphGL.prototype.render = function() {
 	
 	// 100ms is interval between calculations - should be specified in options/with algorithms?
 	// var dt = (new_render - this.last_render)/this.iterTime; // miliseconds
-	console.log("iter: ", this.iterTime, "frame: ", new_render - this.last_render);
+	// console.log("iter: ", this.iterTime, "frame: ", new_render - this.last_render);
 	
 	
 	// for (var nindex in this.graph.nodes) {
@@ -377,6 +502,10 @@ GraphGL.prototype.start = function(dataUrl) {
 	});
 	
 	return this;
+}
+
+GraphGL.prototype.stop = function() {
+	this.layoutWorker.terminate();
 }
 
 GraphGL.prototype.initialize = function() {

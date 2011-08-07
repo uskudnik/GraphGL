@@ -3,7 +3,7 @@
 <html lang="en">
 <head>
 	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-	<title>foo-1</title>
+	<title>Twitter Followers</title>
 	<script type="text/javascript" charset="utf-8" src="../jquery-1.6.1.js"></script>
 	<script type="text/javascript" charset="utf-8" src="../../three.js/build/Three.js"></script>
 	
@@ -14,10 +14,14 @@
 precision highp float;
 #endif
 
+// attribute vec3 nodeColor;
+
+// varying vec3 color;
 varying vec2 vUv;
 
 void main() {
 	vUv = uv;
+	// color = nodeColor;
 	gl_Position = projectionMatrix *
 				modelViewMatrix *
 				vec4(position, 1.0);
@@ -31,6 +35,7 @@ precision highp float;
 
 uniform vec3 color;
 
+// varying vec3 color;
 varying vec2 vUv;
 
 void main() {
@@ -150,6 +155,7 @@ $(document).ready(function(){
 	var width = 600, height = 500;
 	
 	var dataurl = "urbanskudnik.json";
+	// var dataurl = "java-dataset.json";
 	
 	// var dataimporter = "../../import_json.js";
 	// var url = "file:///Users/urbanskudnik/Dev/GraphGL/examples/example-2-gexf.html";
@@ -188,6 +194,10 @@ $(document).ready(function(){
 	
 	graphgl.animate = animate;
 	
+	$("#stop").click(function(ev){
+		graphgl.stop();
+	});
+	
 	// should go to web workers? or maybe not...
 	// $.get(
 	// 			url, 
@@ -212,7 +222,7 @@ $(document).ready(function(){
 </head>
 
 <body>
-<div id="fps"></div>
+<div id="fps"></div><button id="stop">Stop</button>
 <div id="canvas"></div>
 </body>
 </html>
