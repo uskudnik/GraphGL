@@ -344,8 +344,6 @@ ParallelForceAtlas.prototype.iter = function() {
 	// console.log("ParallelForceAtlas execution time per iteration: "+(endall-start)/1000);
 	
 	postMessage(graph.nodes);
-	
-	this.iter()
 }
 
 function Graph() {}
@@ -389,5 +387,9 @@ onmessage = function(msg) {
 	}
 	
 	var pfa = new ParallelForceAtlas(graph);
-	pfa.iter();
+	var i = 1000;
+	while(i--) {
+		pfa.iter();
+	};
+	close();
 }
