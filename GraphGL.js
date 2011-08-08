@@ -18,7 +18,9 @@ function GraphGL(options) {
 	this.options = {
 		canvas: {},
 		nodes: {
-			backgroundColor: 0xA0FF00,
+			color: 0xA0FF00,
+			borderColor: 0xAFFF00, 
+			selectColor: 0xFF0011,
 			scale: 20
 		},
 		edges: {
@@ -46,6 +48,7 @@ function GraphGL(options) {
 				// this.graph.nodes[key].data.y = y;
 				this.graph.nodes[key].position.x = x;
 				this.graph.nodes[key].position.y = y;
+				this.graph.nodes[key].position.z = 1;
 				
 				if(this.firstFrame) {
 					var scale = Math.max(5, 30*node.degree/data.maxDegree);
@@ -81,7 +84,8 @@ function GraphGL(options) {
 	
 	this.renderer = new THREE.WebGLRenderer({
 		clearColor: this.options.canvas.backgroundColor,
-		antialias: true
+		antialias: true,
+		enableDepthBufferWrite: true
 	});
 	this.renderer.sortObjects = false;
 	this.renderer.setSize(this.options.width, this.options.height);	
@@ -111,20 +115,29 @@ function GraphGL(options) {
 	});
 	
 	// Master geometries	
-	this.Edges = new THREE.Line(new THREE.Geometry(), new THREE.LineBasicMaterial( { color: 0xff0000, opacity: 0.2, linewidth: 1} ), THREE.LinePieces);
+	this.Edges = new THREE.Line(new THREE.Geometry(), new THREE.LineBasicMaterial( { color: this.options.nodes.color, opacity: 0.2, linewidth: 1} ), THREE.LinePieces);
+	// this.Edges.renderDepth = 0;
 	this.Edges.edges = [];
 	
-	this.connectedEdges = new THREE.Line(new THREE.Geometry(), new THREE.LineBasicMaterial( { color: 0x00ff00, opacity: 1.0, linewidth: 2} ), THREE.LinePieces);
+	this.connectedEdges = new THREE.Line(new THREE.Geometry(), new THREE.LineBasicMaterial( { color: this.options.selectColor, opacity: 0.8, linewidth: 2} ), THREE.LinePieces);
+	// this.connectedEdges.dynamic = true;
 	this.connectedEdges.edges = [];
 		
 	// Events
 	this.events.mouse = {};
 	this.events.mouse.position = new THREE.Vector3();
 	
+	this.events.selectedNodes = [];
+	// this.events.nodes.selected = false;
+	
 	// For dragging around canvas
 	$(this.renderer.domElement).mousedown(function(ev){
+		// console.log("edges: ", that.Edges.materials[0].opacity);
+		// that.Edges.materials[0].opacity = 0.8;
 		that.events.mouse.down = true;
 		that.events.mouse.position.set(ev.pageX, ev.pageY, 0);
+		
+		
 	});
 	$(this.renderer.domElement).bind("mouseup mouseleave", function(ev){
 		that.events.mouse.down = false;
@@ -175,6 +188,17 @@ function GraphGL(options) {
 	// Interactivity
 	this.projector = new THREE.Projector();
 	$(this.renderer.domElement).click(function(ev){
+		// First remove old connected edges and reset color of selected node(s)
+		that.scene.removeObject(that.connectedEdges);
+		var i = that.events.selectedNodes.length;
+		while(i--) {
+			that.events.selectedNodes[i].materials[0].uniforms.color.value = that.hexColorToRGB(that.options.nodes.color);
+		}
+		
+		that.connectedEdges = new THREE.Line(new THREE.Geometry(), new THREE.LineBasicMaterial( { color: that.options.nodes.selectColor, opacity: 0.8, linewidth: 2} ), THREE.LinePieces);
+		that.connectedEdges.edges = [];
+		
+		//Calculate position of a click		
 		clickPosition = new THREE.Vector3(ev.pageX, ev.pageY, that.camera.position.z);
 		
 		clickPosition.subSelf(that.options.r0);
@@ -194,8 +218,9 @@ function GraphGL(options) {
 			
 			if (distance < node.boundRadiusScale) {
 				console.log("Intersect: ", node);
+				that.events.selectedNodes.push(node);
 				// console.log("nodepos: ", node.position.x, node.position.y);
-				node.materials[0].uniforms.color.value.z = 1;
+				node.materials[0].uniforms.color.value = that.hexColorToRGB(that.options.nodes.selectColor);
 				
 				var i = that.Edges.edges.length;
 				while(i--) {
@@ -203,14 +228,11 @@ function GraphGL(options) {
 					if (edge.source == node.data.id) {		
 						that.connectedEdges.geometry.vertices.push(new THREE.Vector3());
 						that.connectedEdges.geometry.vertices.push(new THREE.Vector3());
-						
 						that.connectedEdges.edges.push(edge);
 					}
 				}
 				
 				that.scene.addObject(that.connectedEdges);
-				// console.log(that.Edges);
-				// console.log(that.connectedEdges);			
 			}			
 		}
 	});
@@ -238,7 +260,7 @@ Graph.prototype.node = function(data) {
 	if (data.color !== undefined) {
 		colorVector = this.hexColorToRGB(data.color);
 	} else {
-		colorVector = this.hexColorToRGB(this.options.nodes.backgroundColor);
+		colorVector = this.hexColorToRGB(this.options.nodes.color);
 	}
 	
 	// this.node_material.uniforms = {
@@ -262,6 +284,7 @@ Graph.prototype.node = function(data) {
 			vertexShader: $("#node-vertexShader").text(),
 			fragmentShader: $("#node-fragmentShader").text()
 	}));
+	// node.renderDepth = 1;
 	// node.dynamic = true;
 	
 	// node.position.x = 0;
@@ -387,9 +410,16 @@ GraphGL.prototype.render = function() {
 		var itrg = i*2+1;
 		
 		this.Edges.geometry.vertices[isrc].position = nsrc.position;
+		this.Edges.geometry.vertices[isrc].position.z = -1;
+		
 		this.Edges.geometry.vertices[itrg].position = ntrg.position;
+		this.Edges.geometry.vertices[itrg].position.z = -1;	
 			
+		// console.log(nsrc.position, ntrg.position);
+		// console.log(this.Edges.geometry.vertices[isrc], this.Edges.geometry.vertices[itrg]);
 		this.Edges.geometry.__dirtyVertices = true;
+		// this.renderer.render(this.scene, this.camera);
+		// break;
 	}
 	
 	var edges = this.connectedEdges.edges;
@@ -409,9 +439,10 @@ GraphGL.prototype.render = function() {
 		this.connectedEdges.geometry.vertices[itrg].position = ntrg.position;
 			
 		this.connectedEdges.geometry.__dirtyVertices = true;
+		
 	}
 	
-	
+	// console.log(this.connectedEdges);
 	this.renderer.render(this.scene, this.camera);
 	this.last_render = new_render;
 }

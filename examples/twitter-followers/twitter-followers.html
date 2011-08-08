@@ -65,6 +65,8 @@ void main() {
 			
 			gl_FragColor = vec4(color, 1.0-d/dr);
 			// gl_FragColor = vec4(color, smoothstep(r, R, sqrt(pow(pos.x, 2.0) + pow(pos.y, 2.0))));
+		} else {
+			gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0);
 		}
 	}
 }
