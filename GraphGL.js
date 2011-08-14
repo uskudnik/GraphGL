@@ -510,12 +510,15 @@ GraphGL.prototype.initialize = function() {
 	this.layoutWorker.postMessage(this.graphData);
 	
 	this.layoutWorker.onmessage = function(msg) {
-		// console.log("Returned data:", msg.data);
+		console.log("Returned data:", msg.data.log);
+		return;
+				
 		if (msg.data.type == "log")
 			return;
 		
 		that.options.layoutUpdate.call(that, msg.data);
 		that.iterTime = msg.data.iterTime;
+		
 		// console.log(msg.data.boundingBox.bottomLeft.x, msg.data.boundingBox.bottomLeft.y, msg.data.boundingBox.topRight.x, msg.data.boundingBox.topRight.y);
 		
 		if (!that.renderingStarted) {
