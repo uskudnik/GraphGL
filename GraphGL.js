@@ -37,24 +37,34 @@ function GraphGL(options) {
 			var x, y;
 			
 			var i = data._keys.length;
+			// console.log(this.NodeSystem);
 			while(i--) {
 				var key = data._keys[i];
 				var node = data._data[key];
-				
+				// console.log(key, node);
+				// break;
 				x = node.nodeData.x / (boundingBox.topRight.x - boundingBox.bottomLeft.x) * mx;
 				y = node.nodeData.y / (boundingBox.topRight.y - boundingBox.bottomLeft.y) * my;
 				
 				// this.graph.nodes[key].data.x = x;
 				// this.graph.nodes[key].data.y = y;
-				this.graph.nodes[key].position.x = x;
-				this.graph.nodes[key].position.y = y;
-				this.graph.nodes[key].position.z = 1;
+
+				// original node data
+				var onode = this.Nodes.nodes[key];
+				// this.Nodes.geometry.vertices[onode.vertice] = new THREE.Vector3(x, y, 0);
+				onode.position.x = x;
+				onode.position.y = y;
 				
-				if(this.firstFrame) {
-					var scale = Math.max(5, 30*node.degree/data.maxDegree);
-					this.graph.nodes[key].scale = new THREE.Vector3(scale, scale, scale);
-				}
+				// console.log(onode.position.x, onode.position.y);
+				// console.log(this.NodeSystem.geometry.vertices[onode.vertice]);
+				this.NodeSystem.geometry.vertices[onode.vertice].position = new THREE.Vector3(x, y, 0);
+				// this.Nodes.nodes[key].position.z = 1;
+				// if(this.firstFrame) {
+				// 	var scale = Math.max(5, 20*node.degree/data.maxDegree);
+				// 	// this.graph.nodes[key].scale = new THREE.Vector3(scale, scale, scale);
+				// }
 			}
+			// console.log(this.NodeSystem);
 			this.firstFrame = false;
 		}
 	}
@@ -113,6 +123,27 @@ function GraphGL(options) {
 		vertexShader: $("#edge-vertexShader").text(),
 		fragmentShader: $("#edge-fragmentShader").text()
 	});
+	
+	this.nodeAttributes = {
+		position: {
+			type: "v3", 
+			value: []
+		}
+	};
+	
+	// attributes: this.nodeAttributes,
+	this.NodeShader = new THREE.MeshShaderMaterial({
+		vertexShader: $("#node-vertexShader").text(),
+		fragmentShader: $("#node-fragmentShader").text()
+	});
+	
+	// this.Nodes = new THREE.ParticleSystem(this.NodesGeometry, this.NodeShader);
+	// this.Nodes.dynamic = true;
+	
+	this.NodeSystem;
+	this.Nodes = new THREE.Geometry();
+	this.Nodes.nodes = {};
+	// this.Nodes.nodes = {};
 	
 	// Master geometries	
 	this.Edges = new THREE.Line(new THREE.Geometry(), new THREE.LineBasicMaterial( { color: this.options.nodes.color, opacity: 0.2, linewidth: 1} ), THREE.LinePieces);
@@ -271,36 +302,47 @@ Graph.prototype.node = function(data) {
 	// };
 	// console.log(this.nodeAttributes);
 	// this.nodeAttributes.nodeColor.value.push(colorVector);
+	// 
+	// var node = new THREE.Mesh(
+	// 	this.node_geometry, 
+	// 	new THREE.MeshShaderMaterial({
+	// 		uniforms: {
+	// 			color: {
+	// 				type: "v3",
+	// 				value: colorVector
+	// 			} 
+	// 		},
+	// 		vertexShader: $("#node-vertexShader").text(),
+	// 		fragmentShader: $("#node-fragmentShader").text()
+	// }));
 	
-	var node = new THREE.Mesh(
-		this.node_geometry, 
-		new THREE.MeshShaderMaterial({
-			uniforms: {
-				color: {
-					type: "v3",
-					value: colorVector
-				} 
-			},
-			vertexShader: $("#node-vertexShader").text(),
-			fragmentShader: $("#node-fragmentShader").text()
-	}));
+	this.Nodes.vertices.push(new THREE.Vertex(new THREE.Vector3()));
+	this.Nodes.nodes[data.id] = {
+		label: data.label,
+		position: new THREE.Vector3(),
+		vertice: this.Nodes.vertices.length - 1
+	};
+		
+	return this.Nodes.nodes[data.id];
+	
 	// node.renderDepth = 1;
 	// node.dynamic = true;
 	
 	// node.position.x = 0;
 	// node.position.y = 0;
 	// should be returned by engine?
-	node.scale = new THREE.Vector3(
-		this.options.nodes.scale, 
-		this.options.nodes.scale, 
-		this.options.nodes.scale
-	);
+	// node.scale = new THREE.Vector3(
+	// 	this.options.nodes.scale, 
+	// 	this.options.nodes.scale, 
+	// 	this.options.nodes.scale
+	// );
 	
 	// node.matrixAutoUpdate = false;
-	this.scene.addChild(node);
-	node.data = data;
+	// this.scene.addChild(node);
+	// node.data = data;
 	
-	return node;
+	// return node;
+	
 };
 
 Graph.prototype.lineEdge = function(source, target) {
@@ -403,8 +445,8 @@ GraphGL.prototype.render = function() {
 		var src = edges[i].source;
 		var trg = edges[i].target;
 		
-		var nsrc = this.graph.nodes[src];
-		var ntrg = this.graph.nodes[trg];
+		var nsrc = this.Nodes.nodes[src];
+		var ntrg = this.Nodes.nodes[trg];
 		
 		var isrc = i*2;
 		var itrg = i*2+1;
@@ -417,30 +459,30 @@ GraphGL.prototype.render = function() {
 			
 		// console.log(nsrc.position, ntrg.position);
 		// console.log(this.Edges.geometry.vertices[isrc], this.Edges.geometry.vertices[itrg]);
-		this.Edges.geometry.__dirtyVertices = true;
 		// this.renderer.render(this.scene, this.camera);
 		// break;
 	}
-	
-	var edges = this.connectedEdges.edges;
-	var i = edges.length;
-	while(i--) {
-		var src = edges[i].source;
-		var trg = edges[i].target;
-		
-		var nsrc = this.graph.nodes[src];
-		var ntrg = this.graph.nodes[trg];
-		
-		// console.log(nsrc, ntrg);
-		var isrc = i*2;
-		var itrg = i*2+1;
-		
-		this.connectedEdges.geometry.vertices[isrc].position = nsrc.position;
-		this.connectedEdges.geometry.vertices[itrg].position = ntrg.position;
-			
-		this.connectedEdges.geometry.__dirtyVertices = true;
-		
-	}
+	this.NodeSystem.geometry.__dirtyVertices = true;
+	this.Edges.geometry.__dirtyVertices = true;
+	// var edges = this.connectedEdges.edges;
+	// var i = edges.length;
+	// while(i--) {
+	// 	var src = edges[i].source;
+	// 	var trg = edges[i].target;
+	// 	
+	// 	var nsrc = this.graph.nodes[src];
+	// 	var ntrg = this.graph.nodes[trg];
+	// 	
+	// 	// console.log(nsrc, ntrg);
+	// 	var isrc = i*2;
+	// 	var itrg = i*2+1;
+	// 	
+	// 	this.connectedEdges.geometry.vertices[isrc].position = nsrc.position;
+	// 	this.connectedEdges.geometry.vertices[itrg].position = ntrg.position;
+	// 		
+	// 	this.connectedEdges.geometry.__dirtyVertices = true;
+	// 	
+	// }
 	
 	// console.log(this.connectedEdges);
 	this.renderer.render(this.scene, this.camera);
@@ -460,12 +502,19 @@ GraphGL.prototype.start = function(dataUrl) {
 			that.graphData = data;
 			that.graph = new Graph();
 			// console.log(data);
+			// TODO: maybe data a bit more general?
 			for(var n in data.nodes) {
 				that.graph.nodes[n] = that.graph.node.call(that, {
 					id: n,
 					label: data.nodes[n]
 				});
 			}
+			
+			// console.log(that.Nodes);
+			that.NodeSystem = new THREE.ParticleSystem(that.Nodes, that.NodeShader);
+			that.NodeSystem.dynamic = true;
+			
+			that.scene.addObject(that.NodeSystem);
 			
 			if (that.options.edges.type == "arc") {
 				for(var e in data.edges) {

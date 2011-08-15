@@ -8,23 +8,22 @@
 	<script type="text/javascript" charset="utf-8" src="../../three.js/build/Three.js"></script>
 	
 	<script type="text/javascript" charset="utf-8" src="../../GraphGL.js"></script>
+	<script type="text/javascript" charset="utf-8" src="Stats.js"></script>
 
 <script id="node-vertexShader" type="x-shader/x-vertex" charset="utf-8">
 #ifdef GL_ES
 precision highp float;
 #endif
 
-// attribute vec3 nodeColor;
-
-// varying vec3 color;
-varying vec2 vUv;
+// attribute vec3 position;
 
 void main() {
-	vUv = uv;
+
 	// color = nodeColor;
-	gl_Position = projectionMatrix *
-				modelViewMatrix *
-				vec4(position, 1.0);
+	vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+	gl_PointSize = 10.0 * (600.0 / length(mvPosition.xyz) );
+	
+	gl_Position = projectionMatrix * mvPosition;
 }
 </script>
 
@@ -33,42 +32,9 @@ void main() {
 precision highp float;
 #endif
 
-uniform vec3 color;
-
-// varying vec3 color;
-varying vec2 vUv;
 
 void main() {
-	vec2 pos = vUv;
-	
-	// gl_FragColor = vec4(0.0, 0.0, 1.0, 0.7);
-	float dr = 0.05;
-	float doff = 0.5;
-	float rmax = pow(doff, 2.0);
-	pos.x = pos.x - doff;
-	pos.y = pos.y - doff;
-	float x2 = pow(pos.x, 2.0);
-	float y2 = pow(pos.y, 2.0);
-	float r = x2 + y2 - rmax + dr;
-	float R = x2 + y2 - rmax;
-	
-	float d = abs(r / (2.0*pos.x + 2.0*pos.y));
-	
-	// if ((-dr < r) && (r < dr)) {
-	if (r < 0.0) {
-		// gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
-		gl_FragColor = vec4(color, 1.0);
-	} else {
-		if (R < 0.0) {
-			// 1.0-d/R
-			// TODO: use smoothstep?
-			
-			gl_FragColor = vec4(color, 1.0-d/dr);
-			// gl_FragColor = vec4(color, smoothstep(r, R, sqrt(pow(pos.x, 2.0) + pow(pos.y, 2.0))));
-		} else {
-			gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0);
-		}
-	}
+	gl_FragColor = vec4(1.0, 0.0, 0.0, 0.8);
 }
 </script>
 
@@ -153,18 +119,15 @@ $(document).ready(function(){
 	var canvasId = "#canvas";
 	
 	var start = Date.now(); 
-	// var data = [];
 	var width = 600, height = 500;
 	
-	var dataurl = "urbanskudnik.json";
+	var dataurl = "n-100-e-500-randomset.json";
 	// var dataurl = "java-dataset.json";
 	
 	// var dataimporter = "../../import_json.js";
 	// var url = "file:///Users/urbanskudnik/Dev/GraphGL/examples/example-2-gexf.html";
 	var layout = "../../ForceAtlas.js";
-	
-	// var ni = 0; // number of iterations 
-	
+		
 	// var gexfdata;
 	var options = {
 		canvas: {
@@ -180,18 +143,11 @@ $(document).ready(function(){
 	var graphgl = new GraphGL(options);
 	
 	// We need a completly stand-by-itself function, otherwise bad things start to happen. Bug?
-	var fps = 0;
-	var frameTimer = new Date();
 	
 	function animate() {
-		fps += 1
-		$("#fps").text(fps/((new Date() - frameTimer)/1000));
 		requestAnimFrame(animate);
 		graphgl.render();
-		if ((new Date() - frameTimer)/1000 > 1 ) {
-			frameTimer = new Date();
-			fps = 0;
-		}
+		stats.update();
 	}
 	
 	graphgl.animate = animate;
@@ -200,21 +156,13 @@ $(document).ready(function(){
 		graphgl.stop();
 	});
 	
-	// should go to web workers? or maybe not...
-	// $.get(
-	// 			url, 
-	// 			function(data) {
-	// 				gexfdata = data;
-	// 				// console.log(gexfdata);
-	// 				graphgl.init(gexfdata, import_gexf);
-	// 				
-	// 				// animate()
-	// 				//.render(force_layout);
-	// 				
-	// 				
-	// 	}).error(function(e) { console.log("error - ", e); });
-	
 	graphgl.start(dataurl);
+	
+	var container = document.getElementById( 'canvas' );
+	stats = new Stats();
+	stats.domElement.style.position = 'absolute';
+	stats.domElement.style.top = '0px';
+	container.appendChild( stats.domElement );
 	
 	var endall = Date.now();
 	
