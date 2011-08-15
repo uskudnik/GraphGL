@@ -16,12 +16,17 @@ precision highp float;
 #endif
 
 // attribute vec3 position;
+attribute vec3 aColor;
+attribute float size;
+
+varying vec3 vColor;
 
 void main() {
 
 	// color = nodeColor;
+	vColor = aColor;
 	vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-	gl_PointSize = 10.0 * (600.0 / length(mvPosition.xyz) );
+	gl_PointSize = size * (600.0 / length(mvPosition.xyz) );
 	
 	gl_Position = projectionMatrix * mvPosition;
 }
@@ -32,9 +37,11 @@ void main() {
 precision highp float;
 #endif
 
+varying vec3 vColor;
 
 void main() {
-	gl_FragColor = vec4(1.0, 0.0, 0.0, 0.8);
+	// gl_FragColor = vec4(1.0, 0.0, 0.0, 0.8);
+	gl_FragColor = vec4(vColor, 1.0);
 }
 </script>
 
@@ -121,12 +128,15 @@ $(document).ready(function(){
 	var start = Date.now(); 
 	var width = 600, height = 500;
 	
-	var dataurl = "n-100-e-500-randomset.json";
+	// var dataurl = "n-100000-e-5000-randomset.json";
+	// var dataurl = "n-100-e-500-randomset.json";
+	// var dataurl = "n-10000-e-20000-randomset.json";
 	// var dataurl = "java-dataset.json";
+	var dataurl = "java-dataset-color-static.json"
 	
 	// var dataimporter = "../../import_json.js";
 	// var url = "file:///Users/urbanskudnik/Dev/GraphGL/examples/example-2-gexf.html";
-	var layout = "../../ForceAtlas.js";
+	// var layout = "../../ForceAtlas.js";
 		
 	// var gexfdata;
 	var options = {
@@ -136,7 +146,7 @@ $(document).ready(function(){
 		},
 		width: width,
 		height: height,
-		layout: layout
+		layoutType: GraphGL.StaticLayout
 	};
 	
 	
