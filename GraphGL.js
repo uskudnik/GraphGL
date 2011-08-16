@@ -174,7 +174,7 @@ function GraphGL(options) {
 			// Move to mouse cursor - still needs some work		
 			// console.log(that.camera.position.z - difZ);
 			difZ = difZ *(that.camera.position.z/that.camera.far)*10;
-			r.multiplyScalar((that.camera.position.z/that.camera.far)*20);
+			// r.multiplyScalar((that.camera.position.z/that.camera.far)*20);
 			if ((that.camera.position.z - difZ) < that.FAR && (that.camera.position.z - difZ) > 50) {
 				that.camera.translateX((difZ / that.camera.position.z)*r.x);
 				that.camera.translateY(-(difZ / that.camera.position.z)*r.y);
@@ -253,7 +253,7 @@ GraphGL.StaticLayout = function() {
 	var vsize = this.NodeAttributes.size.value;
 	
 	console.log(this.camera);
-	
+	var i = 6517;
 	for (var n in nodes) {
 		var node = nodes[n];
 		var data = node.data;
@@ -265,14 +265,12 @@ GraphGL.StaticLayout = function() {
 		node.position = new THREE.Vector3(data.x, data.y, 0);
 		
 		geo[node.vertice].position = new THREE.Vector3(data.x, data.y, 0);
-		// vcolor[node.vertice] = new THREE.Color().setRGB(data.r, data.g, data.b);
 		vcolor[node.vertice] = new THREE.Color().setRGB(data.r / 255, data.g / 255, data.b / 255);
 		// vcolor[node.vertice] = new THREE.Color().setRGB(1.0, 0.0, 0.0);
-		vsize[node.vertice] = data.size;
-		
-		// console.log(vcolor[node.vertice]);
-		// break;
+		vsize[node.vertice] = data.size ? data.size : 3;
 	}
+	// console.log(vsize);
+	// console.log(vcolor);
 	var xmax = Math.max(Math.abs(xmin), Math.abs(xmax));
 	var ymax = Math.max(Math.abs(ymin), Math.abs(ymax));
 	var viewField = Math.max(xmax, ymax) / Math.tan(this.VIEW_ANGLE * Math.PI/180);
@@ -280,11 +278,38 @@ GraphGL.StaticLayout = function() {
 	console.log(viewField);
 	this.FAR = viewField + 500;
 	this.camera.far = viewField+500;
-	this.camera.updateProjectionMatrix()
+	this.camera.updateProjectionMatrix();
 	// console.log(viewField);
 	// this.camera.position.z = viewField;
 	
+	var edges = this.Edges.edges;
+	var edges_vertices = this.Edges.geometry.vertices;
+	var i = edges.length;
+	while (i--) {
+		var src = edges[i].source;
+		var trg = edges[i].target;
+		
+		var nsrc = this.Nodes.nodes[src];
+		var ntrg = this.Nodes.nodes[trg];
+		
+		var isrc = i*2;
+		var itrg = i*2+1;
+		
+		edges_vertices[isrc].position = nsrc.position;
+		edges_vertices[isrc].position.z = -1;
+		
+		edges_vertices[itrg].position = ntrg.position;
+		edges_vertices[itrg].position.z = -1;	
+			
+		// console.log(nsrc.position, ntrg.position);
+		// console.log(this.Edges.geometry.vertices[isrc], this.Edges.geometry.vertices[itrg]);
+		// this.renderer.render(this.scene, this.camera);
+		// break;
+	}
+	
 	this.NodeSystem.geometry.__dirtyVertices = true;
+	this.Edges.geometry.__dirtyVertices = true;
+	
 	this.NodeAttributes.aColor.needsUpdate = true;
 	this.NodeAttributes.size.needsUpdate = true;
 	this.animate();
@@ -535,30 +560,7 @@ GraphGL.prototype.render = function() {
 	// 		};
 	// }
 	
-	var edges = this.Edges.edges;
-	var i = edges.length;
-	while (i--) {
-		var src = edges[i].source;
-		var trg = edges[i].target;
-		
-		var nsrc = this.Nodes.nodes[src];
-		var ntrg = this.Nodes.nodes[trg];
-		
-		var isrc = i*2;
-		var itrg = i*2+1;
-		
-		this.Edges.geometry.vertices[isrc].position = nsrc.position;
-		this.Edges.geometry.vertices[isrc].position.z = -1;
-		
-		this.Edges.geometry.vertices[itrg].position = ntrg.position;
-		this.Edges.geometry.vertices[itrg].position.z = -1;	
-			
-		// console.log(nsrc.position, ntrg.position);
-		// console.log(this.Edges.geometry.vertices[isrc], this.Edges.geometry.vertices[itrg]);
-		// this.renderer.render(this.scene, this.camera);
-		// break;
-	}
-	this.Edges.geometry.__dirtyVertices = true;
+	
 	// var edges = this.connectedEdges.edges;
 	// var i = edges.length;
 	// while(i--) {
