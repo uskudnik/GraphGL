@@ -169,7 +169,7 @@ function GraphGL(options) {
 		function(ev){						
 			var difZ;
 			
-			if (ev.DOMMouseScroll) difZ = ev.detail; // Firefox
+			if (ev.type == "DOMMouseScroll") difZ = ev.detail; // Firefox
 			else difZ = ev.wheelDelta;
 
 			// console.log(difZ);
