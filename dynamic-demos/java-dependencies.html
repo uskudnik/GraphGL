@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+	<title>Java dependencies</title>
+	<script type="text/javascript" charset="utf-8" src="jquery-1.6.1.js"></script>
+	<script type="text/javascript" charset="utf-8" src="Three.js"></script>
+	
+	<script type="text/javascript" charset="utf-8" src="GraphGL.js"></script>
+	<script type="text/javascript" charset="utf-8" src="Stats.js"></script>
+
+<script id="node-vertexShader" type="x-shader/x-vertex" charset="utf-8">
+#ifdef GL_ES
+precision highp float;
+#endif
+
+// attribute vec3 nodeColor;
+
+// varying vec3 color;
+varying vec2 vUv;
+
+void main() {
+	vUv = uv;
+	// color = nodeColor;
+	gl_Position = projectionMatrix *
+				modelViewMatrix *
+				vec4(position, 1.0);
+}
+</script>
+
+<script id="node-fragmentShader" type="x-shader/x-fragment" charset="utf-8">
+#ifdef GL_ES
+precision highp float;
+#endif
+
+uniform vec3 color;
+
+// varying vec3 color;
+varying vec2 vUv;
+
+void main() {
+	vec2 pos = vUv;
+	
+	// gl_FragColor = vec4(0.0, 0.0, 1.0, 0.7);
+	float dr = 0.05;
+	float doff = 0.5;
+	float rmax = pow(doff, 2.0);
+	pos.x = pos.x - doff;
+	pos.y = pos.y - doff;
+	float x2 = pow(pos.x, 2.0);
+	float y2 = pow(pos.y, 2.0);
+	float r = x2 + y2 - rmax + dr;
+	float R = x2 + y2 - rmax;
+	
+	float d = abs(r / (2.0*pos.x + 2.0*pos.y));
+	
+	// if ((-dr < r) && (r < dr)) {
+	if (r < 0.0) {
+		// gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+		gl_FragColor = vec4(color, 1.0);
+	} else {
+		if (R < 0.0) {
+			// 1.0-d/R
+			// TODO: use smoothstep?
+			
+			gl_FragColor = vec4(color, 1.0-d/dr);
+			// gl_FragColor = vec4(color, smoothstep(r, R, sqrt(pow(pos.x, 2.0) + pow(pos.y, 2.0))));
+		} else {
+			gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0);
+		}
+	}
+}
+</script>
+
+<script id="edge-vertexShader" type="x-shader/x-vertex" charset="utf-8">
+#ifdef GL_ES
+precision highp float;
+#endif
+
+varying vec2 vUv;
+
+void main() {
+	vUv = uv;
+	gl_Position = projectionMatrix *
+				modelViewMatrix *
+				vec4(position, 1.0);
+}
+</script>
+
+<script id="edge-fragmentShader" type="x-shader/x-fragment" charset="utf-8">
+#ifdef GL_ES
+precision highp float;
+#endif
+
+varying vec2 vUv;
+
+uniform vec2 radiusbox;
+// uniform vec2 pstart;
+// uniform vec2 pend;
+
+uniform vec2 canvasDimensions;
+
+// vec2 dif = pend - pstart;
+
+float w = radiusbox.x;
+float h = radiusbox.y;
+
+float radius = pow(w, 2.0) / (8.0 * h) + h / 2.0;
+
+vec2 offset = vec2(w/2.0, radius);
+
+vec2 pixelArea = vec2(1.0, 1.0) / canvasDimensions;
+float pixel = max(pixelArea.x, pixelArea.y)*10.0;
+
+
+float arc(vec2 xy) {
+	return pow(xy.x-0.5, 2.0) + pow(xy.y, 2.0) - 0.5;
+}
+
+float smootherstep(float edge0, float edge1, float x)
+{
+    // Scale, and clamp x to 0..1 range
+    x = clamp((x - edge0)/(edge1 - edge0), 0.0, 1.0);
+    // Evaluate polynomial
+    return x*x*x*(x*(x*6.0 - 15.0) + 10.0);
+}
+
+void main() {
+	vec2 pos = vUv;
+	
+	if (arc(pos) < 0.0) {
+		if (arc(pos) + pixel > 0.0) {
+			gl_FragColor = vec4(1.0, 0.0, 0.0, smoothstep(arc(pos), arc(pos)+pixel/4.0, sqrt(pow(pos.x, 2.0) + pow(pos.y, 2.0))));
+		}
+	}
+}
+</script>
+<style>
+		#canvas {
+			background: #000;
+			width: 800px;
+			height: 600px;
+			position:absolute;
+			left:56px;
+			top:30px;
+		}
+
+</style>
+
+<script type="text/javascript" charset="utf-8">
+$(document).ready(function(){
+	// var canvas = $("#canvas");
+	var canvasId = "#canvas";
+	
+	var start = Date.now(); 
+	// var data = [];
+	var width = 800, height = 600;
+	
+	var dataurl = "java-dataset.json";
+	
+	var layout = "ForceAtlas.js";
+	
+	var options = {
+		canvas: {
+			canvasId: canvasId,
+			backgroundColor: 0xffffff
+		},
+		nodes: {
+			color: 0x4193F8
+		},
+		width: width,
+		height: height,
+		layout: layout
+	};
+	
+	
+	var graphgl = new GraphGL(options);
+	
+	// We need a completly stand-by-itself function, otherwise bad things start to happen. Bug?
+	var fps = 0;
+	var frameTimer = new Date();
+	
+	function animate() {
+		requestAnimFrame(animate);
+		graphgl.render();
+		stats.update();
+	}
+	
+	graphgl.animate = animate;
+	
+	$("#stop").click(function(ev){
+		graphgl.stop();
+	});
+		
+	graphgl.start(dataurl);
+	
+	var container = document.getElementById( 'canvas' );
+	stats = new Stats();
+	stats.domElement.style.position = 'absolute';
+	stats.domElement.style.top = '0px';
+	container.appendChild( stats.domElement );
+	
+	var endall = Date.now();
+	
+	console.log("all: ", (endall-start)/1000);
+});
+</script>
+</head>
+
+<body>
+<div id="fps"></div><button id="stop">Stop</button>
+<div id="canvas"></div>
+</body>
+</html>
