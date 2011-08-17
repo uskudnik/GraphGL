@@ -18,36 +18,75 @@ GraphGL is a network visualization library designed for rendering (<i>massive</i
 
 After you have retrieved the library, you can start playing with it.
 
-At the moment static graphs are only available from particlesystem branch. 
+##### At the moment static graphs are only available from `particlesystem` branch.
+
+Some notes:
 
 Library expects JSON data for input in the form of
-{"nodes": {
-        "nodeid": nodedata, 
-        "nodeid": nodedata, ...
-    },
- "edges": [
-        {"source": "sourceid", "target": "targetid"},
-        {"source": "sourceid", "target": "targetid"}, ...
-    ]
-}
+    {"nodes": {
+            "nodeid": nodedata, 
+            "nodeid": nodedata, ...
+        },
+     "edges": [
+            {"source": "sourceid", "target": "targetid"},
+            {"source": "sourceid", "target": "targetid"}, ...
+        ]
+    }
 
-In the case of static graph (that is, graph that does not need to layout calculated), nodedata must include size, coordinates and color of a node.
+In the case of static graph (that is, graph that does not need to layout calculated), `nodedata` must include size, coordinates and color of a node.
 
 An example:
 
-{"label": "text",
- "size": 3.57,
- "x": 339.43,
- "y": 246.62,
- "r": 175,
- "g": 182,
- "b": 75
-}
+    {"label": "text",
+     "size": 3.57,
+     "x": 339.43,
+     "y": 246.62,
+     "r": 175,
+     "g": 182,
+     "b": 75
+    }
 
-As for dynamic dataset, you can provide whatever you like for nodedata, from examples:
+As for dynamic dataset, you can provide whatever you like for `nodedata`, from demos:
 
 {"nodes": {
     "344": "java.awt.MenuBar",
     "345": "java.awt.peer.FramePeer", ... },
  "edges": [...]
 }
+
+As for initialization:
+    var canvasId = "#canvas";
+    var width = 800, height = 600;
+    var dataurl = "java-dataset-color-static.json"
+	
+    var options = {
+    	canvas: {
+    		canvasId: canvasId,
+    		backgroundColor: 0xffffff
+    	},
+    	nodes: {
+    		color: 0x4193F8
+    	},
+    	width: width,
+    	height: height,
+    	layoutType: GraphGL.StaticLayout
+    };
+
+
+    var graphgl = new GraphGL(options);
+
+    function animate() {
+    	requestAnimFrame(animate);
+    	graphgl.render();
+    	stats.update();
+    }
+
+    graphgl.animate = animate;
+    
+    var container = document.getElementById( 'canvas' );
+    stats = new Stats();
+    stats.domElement.style.position = 'absolute';
+    stats.domElement.style.top = '0px';
+    container.appendChild( stats.domElement );
+    
+Questions & bugs? Issues ;)
