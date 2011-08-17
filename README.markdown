@@ -5,7 +5,9 @@ A network visualization library
 -------------------------------
 
 
-GraphGL is a network visualization library designed for rendering (<i>massive</i>) graphs in web browsers and puts dynamic graph exploration on the web another step forward. In short, it calculates the layout of the graph in real time and is therefore suitable for static files (exported GraphML/GEXF files) and for dynamic files (LinkedIns InMap would be one such example).
+GraphGL is a network visualization library designed for rendering (_massive_) graphs in web browsers and puts dynamic graph exploration on the web another step forward.
+
+In short - it either calculates the layout of the graph in real time or reads node positions. It is therefore suitable for static files (exported GraphML/GEXF files converted to python) and for dynamic files.
 
 ### Usage ###
 
@@ -23,6 +25,7 @@ After you have retrieved the library, you can start playing with it.
 Some notes:
 
 Library expects JSON data for input in the form of
+
     {"nodes": {
             "nodeid": nodedata, 
             "nodeid": nodedata, ...
@@ -48,11 +51,11 @@ An example:
 
 As for dynamic dataset, you can provide whatever you like for `nodedata`, from demos:
 
-{"nodes": {
-    "344": "java.awt.MenuBar",
-    "345": "java.awt.peer.FramePeer", ... },
- "edges": [...]
-}
+    {"nodes": {
+        "344": "java.awt.MenuBar",
+        "345": "java.awt.peer.FramePeer", ... },
+     "edges": [...]
+    }
 
 As for initialization:
     var canvasId = "#canvas";
@@ -82,6 +85,8 @@ As for initialization:
     }
 
     graphgl.animate = animate;
+    
+    graphgl.start(dataurl);
     
     var container = document.getElementById( 'canvas' );
     stats = new Stats();
