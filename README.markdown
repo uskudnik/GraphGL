@@ -7,16 +7,16 @@ A network visualization library
 
 GraphGL is a network visualization library designed for rendering (_massive_) graphs in web browsers and puts dynamic graph exploration on the web another step forward.
 
-In short - it either calculates the layout of the graph in real time or reads node positions. It is therefore suitable for static files (exported GraphML/GEXF files converted to python) and for dynamic files.
+In short - it either calculates the layout of the graph in real time or reads node positions. It is therefore suitable for static files (exported GraphML/GEXF files converted to JSON) and for dynamic files.
 
 ### Usage ###
 
 
 #### To retrieve the project and required libraries #####
 
-1. git clone git@github.com:uskudnik/GraphGL.git
-2. In project directory: git submodule update --init 
-3. Wait for download of three.js
+1. `git clone git@github.com:uskudnik/GraphGL.git`
+2. In project directory: `git submodule update --init` 
+3. Wait for download of `three.js`
 
 After you have retrieved the library, you can start playing with it.
 
