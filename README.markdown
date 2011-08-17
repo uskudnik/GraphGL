@@ -38,9 +38,9 @@ Library expects JSON data for input in the form of
 
 In the case of static graph (that is, graph that does not need to layout calculated), `nodedata` must include size, coordinates and color of a node.
 
-An example:
+An example from demos:
 
-    {"label": "text",
+    {"label": "java.awt.MenuBar",
      "size": 3.57,
      "x": 339.43,
      "y": 246.62,
@@ -49,7 +49,7 @@ An example:
      "b": 75
     }
 
-As for dynamic dataset, you can provide whatever you like for `nodedata`, from demos:
+As for dynamic dataset, you can provide whatever you like for `nodedata`. Again, example from demos:
 
     {"nodes": {
         "344": "java.awt.MenuBar",
@@ -58,6 +58,7 @@ As for dynamic dataset, you can provide whatever you like for `nodedata`, from d
     }
 
 As for initialization:
+
     var canvasId = "#canvas";
     var width = 800, height = 600;
     var dataurl = "java-dataset-color-static.json"
