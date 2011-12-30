@@ -26,37 +26,7 @@ function GraphGL(options) {
 		edges: {
 			type: "line"
 		},
-		layoutUpdate: function(data) {
-			// console.log("Layout update: ", data);
-
-			var mx = this.options.width - 100;
-			var my = this.options.height - 100;
-			
-			// console.log(data);
-			var boundingBox = data.boundingBox;
-			var x, y;
-			
-			var i = data._keys.length;
-			while(i--) {
-				var key = data._keys[i];
-				var node = data._data[key];
-				
-				x = node.nodeData.x / (boundingBox.topRight.x - boundingBox.bottomLeft.x) * mx;
-				y = node.nodeData.y / (boundingBox.topRight.y - boundingBox.bottomLeft.y) * my;
-				
-				// this.graph.nodes[key].data.x = x;
-				// this.graph.nodes[key].data.y = y;
-				this.graph.nodes[key].position.x = x;
-				this.graph.nodes[key].position.y = y;
-				this.graph.nodes[key].position.z = 1;
-				
-				if(this.firstFrame) {
-					var scale = Math.max(5, 30*node.degree/data.maxDegree);
-					this.graph.nodes[key].scale = new THREE.Vector3(scale, scale, scale);
-				}
-			}
-			this.firstFrame = false;
-		}
+		logging: true,
 	}
 		
 	// merge defaults and specified options options
@@ -70,13 +40,9 @@ function GraphGL(options) {
 	this.events = {};
 	
 	this.renderingStarted = false;
-	this.firstFrame = true;
 	
-	this.last_render = new Date();
-	this.iterTime;
-		
-	var	VIEW_ANGLE = 45,
-		viewField = this.options.width / Math.tan(VIEW_ANGLE * Math.PI/180), // Distance, at which entire drawing area is seen
+	this.VIEW_ANGLE = 45;
+	var	viewField = this.options.width / Math.tan(this.VIEW_ANGLE * Math.PI/180); // Distance, at which entire drawing area is seen
 		ASPECT = this.options.width / this.options.height,
 		NEAR = 0.1; // object close then NEAR wont be seen
 		 
@@ -91,28 +57,58 @@ function GraphGL(options) {
 	this.renderer.setSize(this.options.width, this.options.height);	
 	jQuery(this.options.canvas.canvasId).append(this.renderer.domElement);
 	
-	this.camera = new THREE.Camera(
-		VIEW_ANGLE,
+	this.camera = new THREE.PerspectiveCamera(
+		this.VIEW_ANGLE,
 		ASPECT,
 		NEAR,
 		this.FAR);
 	
 	this.camera.position.z = viewField;
 	
+	console.log("cam: ", this.camera.position);
+	
 	this.scene = new THREE.Scene();
+	// this.scene.fog = new THREE.FogExp2( 0x000000, 0.0007 );
+
+	// this.camera.lookAt( this.scene.position );
+	
+	console.log("cam #2: ", this.camera.position);
+	
 	
 	// Basic geometry
-	this.node_geometry = new THREE.PlaneGeometry(1, 1, 1, 1);
+	// this.node_geometry = new THREE.PlaneGeometry(1, 1, 1, 1);
 	
 	// this.node_material = new THREE.MeshShaderMaterial({
 	// 	vertexShader: $("#node-vertexShader").text(),
 	// 	fragmentShader: $("#node-fragmentShader").text()
 	// });
 	
-	this.edge_material = new THREE.MeshShaderMaterial({
-		vertexShader: $("#edge-vertexShader").text(),
-		fragmentShader: $("#edge-fragmentShader").text()
+	// this.edge_material = new THREE.MeshShaderMaterial({
+	// 	vertexShader: $("#edge-vertexShader").text(),
+	// 	fragmentShader: $("#edge-fragmentShader").text()
+	// });
+	
+	this.NodeAttributes = {
+		aColor: {
+			type: "c", 
+			value: []
+		},
+		size: {
+			type: "f",
+			value: []
+		}
+	};
+	
+	// attributes: this.nodeAttributes,
+	this.NodeShader = new THREE.ShaderMaterial({
+		attributes: this.NodeAttributes,
+		vertexShader: $("#node-vertexShader").text(),
+		fragmentShader: $("#node-fragmentShader").text()
 	});
+	
+	this.NodeSystem;
+	this.Nodes = new THREE.Geometry();
+	this.Nodes.nodes = {};
 	
 	// Master geometries	
 	this.Edges = new THREE.Line(new THREE.Geometry(), new THREE.LineBasicMaterial( { color: this.options.nodes.color, opacity: 0.2, linewidth: 1} ), THREE.LinePieces);
@@ -178,7 +174,9 @@ function GraphGL(options) {
 			
 			// Move to mouse cursor - still needs some work		
 			// console.log(that.camera.position.z - difZ);
-			if ((that.camera.position.z - difZ) < that.FAR && (that.camera.position.z - difZ) > 100) {
+			difZ = difZ *(that.camera.position.z/that.camera.far)*10;
+			// r.multiplyScalar((that.camera.position.z/that.camera.far)*20);
+			if ((that.camera.position.z - difZ) < that.FAR && (that.camera.position.z - difZ) > 50) {
 				that.camera.translateX((difZ / that.camera.position.z)*r.x);
 				that.camera.translateY(-(difZ / that.camera.position.z)*r.y);
 				that.camera.position.z = that.camera.position.z - difZ;
@@ -238,8 +236,214 @@ function GraphGL(options) {
 	});
 	
 	// Said to be better for performance
-	this.pointLight = new THREE.DirectionalLight(0xFFFFFF);	
-	this.scene.addLight(this.pointLight);
+	this.pointLight = new THREE.DirectionalLight(0xFFFFFF);
+	console.log(this.scene)	
+	this.scene.addObject(this.pointLight);
+}
+
+GraphGL.StaticLayout = function() {
+	console.log("Static layout");
+	
+	// this.animate();
+	// return;
+	
+	// console.log(this.graphData);
+	// console.log(this.Nodes.notdes);
+	var xmin = 0, xmax = 0;
+	var ymin = 0, ymax = 0;
+	var nodes = this.Nodes.nodes;
+	
+	var geo = this.NodeSystem.geometry.vertices;
+	var vcolor = this.NodeAttributes.aColor.value;
+	var vsize = this.NodeAttributes.size.value;
+	
+	console.log(this.camera);
+	var i = 6517;
+	for (var n in nodes) {
+		var node = nodes[n];
+		var data = node.data;
+		// console.log(node);
+		xmin = Math.min(xmin, data.x);
+		xmax = Math.max(xmax, data.x);
+		ymin = Math.min(ymin, data.y);
+		ymax = Math.max(ymax, data.y);
+		node.position = new THREE.Vector3(data.x, data.y, 0);
+		
+		geo[node.vertice].position = new THREE.Vector3(data.x, data.y, 0);
+		vcolor[node.vertice] = new THREE.Color().setRGB(data.r / 255, data.g / 255, data.b / 255);
+		// vcolor[node.vertice] = new THREE.Color().setRGB(1.0, 0.0, 0.0);
+		vsize[node.vertice] = data.size ? data.size : 3;
+	}
+	// console.log(vsize);
+	// console.log(vcolor);
+	var xmax = Math.max(Math.abs(xmin), Math.abs(xmax));
+	var ymax = Math.max(Math.abs(ymin), Math.abs(ymax));
+	var viewField = Math.max(xmax, ymax) / Math.tan(this.VIEW_ANGLE * Math.PI/180);
+	// this.camera.far = viewField + 500;
+	console.log(viewField);
+	this.FAR = viewField + 500;
+	this.camera.far = viewField+500;
+	this.camera.updateProjectionMatrix();
+	// console.log(viewField);
+	// this.camera.position.z = viewField;
+	
+	var edges = this.Edges.edges;
+	var edges_vertices = this.Edges.geometry.vertices;
+	var i = edges.length;
+	while (i--) {
+		var src = edges[i].source;
+		var trg = edges[i].target;
+		
+		var nsrc = this.Nodes.nodes[src];
+		var ntrg = this.Nodes.nodes[trg];
+		
+		var isrc = i*2;
+		var itrg = i*2+1;
+		
+		edges_vertices[isrc].position = nsrc.position;
+		edges_vertices[isrc].position.z = -1;
+		
+		edges_vertices[itrg].position = ntrg.position;
+		edges_vertices[itrg].position.z = -1;	
+			
+		// console.log(nsrc.position, ntrg.position);
+		// console.log(this.Edges.geometry.vertices[isrc], this.Edges.geometry.vertices[itrg]);
+		// this.renderer.render(this.scene, this.camera);
+		// break;
+	}
+	
+	this.NodeSystem.geometry.__dirtyVertices = true;
+	this.Edges.geometry.__dirtyVertices = true;
+	
+	this.NodeAttributes.aColor.needsUpdate = true;
+	this.NodeAttributes.size.needsUpdate = true;
+	this.animate();
+}
+
+GraphGL.DynamicLayout = function() {
+	console.log("Dynamic layout ");
+	
+	var that = this;
+	
+	// VALID, but for the time being lets do it in the main thread
+	console.log(this.options.layout.algorithm);
+	this.layoutWorker = new Worker(this.options.layout.algorithm);
+		// this.layoutWorker.postMessage(function() {
+		// 		return that.options.layoutSend.call(that);
+		// }());
+	this.graphData.algorithmOptions = this.options.layout.algorithmOptions;
+	this.layoutWorker.postMessage(this.graphData);
+	
+	this.layoutWorker.onmessage = function(msg) {
+		// console.log("Returned data:", msg.data);
+		if (msg.data.type == "log") {
+			console.log(msg.data.log);
+			return;
+		}
+		
+		GraphGL.DynamicLayout.layoutUpdate.call(that, msg.data);
+		
+		if (!that.renderingStarted) {
+			that.renderingStarted = true;
+			console.log("animiram");
+			that.animate();
+		}
+	};
+		
+	this.layoutWorker.onerror = function(event) {
+	    console.log("Worker error: ", event.message + " (" + event.filename + ":" + event.lineno + ")");
+	};
+}
+
+GraphGL.DynamicLayout.layoutUpdate = function(data) {
+	console.log("Layout update: ", data);
+	// return;
+	var that = this;
+
+	var mx = this.options.width - 100;
+	var my = this.options.height - 100;
+	
+	// console.log(data);
+	var boundingBox = data.boundingBox;
+	var x, y;
+	
+	// console.log("graphnodes");
+	// console.log(this.NodeSystem);
+	// console.log(this.NodeAttributes);
+	
+	// var viewField = Math.max(boundingBox.maxx, boundingBox.maxy) / Math.tan(this.VIEW_ANGLE * Math.PI/180);
+	// this.camera.far = viewField + 500;
+	// console.log(viewField);
+	// this.FAR = viewField + 500;
+	// this.camera.far = viewField+500;
+	// this.camera.updateProjectionMatrix();
+	
+	var geo = this.NodeSystem.geometry.vertices;
+	// var vcolor = this.NodeAttributes.aColor.value;
+	// var vsize = this.NodeAttributes.size.value;
+	
+	console.log("cammm", this.camera);
+	
+	// var vcolor = this.NodeAttributes.aColor.value;
+	// var vsize = this.NodeAttributes.size.value;
+	for(var nid in data.nodes) {
+		o = this.Nodes.nodes[nid];
+		u = data.nodes[nid]; // updated node
+		
+		
+		x = u.x / (boundingBox.maxx - boundingBox.minx) * mx;
+		y = u.y / (boundingBox.maxy - boundingBox.miny) * my;
+		
+		o.position.x = x;
+		o.position.y = y;
+		
+		// console.log(this.NodeSystem.geometry.vertices[o.vertice]);
+		// console.log(new THREE.Vector3(x, y, 0));
+		geo[o.vertice].position = new THREE.Vector3(x, y, 0);
+		
+		// console.log(this.NodeSystem.geometry.vertices[o.vertice].position);
+		// vcolor[o.vertice] = new THREE.Color().setRGB(50, 0.1, 1.0);
+		// vsize[o.vertice] = 30;
+		// var p = this.NodeSystem.geometry.vertices[o.vertice];
+		// p.x = x;
+		// p.y = y;
+	}
+	
+	// var i = data._keys.length;
+	// console.log(this.NodeSystem);
+	/*while(i--) {
+		// var key = data._keys[i];
+		// var node = data._data[key];
+		// console.log(key, node);
+		// break;
+		x = node.nodeData.x / (boundingBox.topRight.x - boundingBox.bottomLeft.x) * mx;
+		y = node.nodeData.y / (boundingBox.topRight.y - boundingBox.bottomLeft.y) * my;
+		
+		// this.graph.nodes[key].data.x = x;
+		// this.graph.nodes[key].data.y = y;
+
+		// original node data
+		var onode = this.Nodes.nodes[key];
+		// this.Nodes.geometry.vertices[onode.vertice] = new THREE.Vector3(x, y, 0);
+		onode.position.x = x;
+		onode.position.y = y;
+		
+		// console.log(onode.position.x, onode.position.y);
+		// console.log(this.NodeSystem.geometry.vertices[onode.vertice]);
+		this.NodeSystem.geometry.vertices[onode.vertice].position = new THREE.Vector3(x, y, 0);
+		// this.Nodes.nodes[key].position.z = 1;
+		// if(this.firstFrame) {
+		// 	var scale = Math.max(5, 20*node.degree/data.maxDegree);
+		// 	// this.graph.nodes[key].scale = new THREE.Vector3(scale, scale, scale);
+		// }
+	}*/
+	
+	this.NodeSystem.geometry.__dirtyVertices = true;
+	// this.Edges.geometry.__dirtyVertices = true;
+	
+	this.NodeAttributes.aColor.needsUpdate = true;
+	this.NodeAttributes.size.needsUpdate = true;
+	// console.log(this.NodeSystem);
 }
 
 GraphGL.prototype.hexColorToRGB = function(hex) {
@@ -271,36 +475,52 @@ Graph.prototype.node = function(data) {
 	// };
 	// console.log(this.nodeAttributes);
 	// this.nodeAttributes.nodeColor.value.push(colorVector);
+	// 
+	// var node = new THREE.Mesh(
+	// 	this.node_geometry, 
+	// 	new THREE.MeshShaderMaterial({
+	// 		uniforms: {
+	// 			color: {
+	// 				type: "v3",
+	// 				value: colorVector
+	// 			} 
+	// 		},
+	// 		vertexShader: $("#node-vertexShader").text(),
+	// 		fragmentShader: $("#node-fragmentShader").text()
+	// }));
+	// var data = data.data;
+	var d = data.data;
+	this.Nodes.vertices.push(new THREE.Vertex(new THREE.Vector3(10, 100, 0)));
+	this.Nodes.nodes[data.id] = {
+		data: d,
+		position: new THREE.Vector3(),
+		vertice: this.Nodes.vertices.length - 1
+	};
+	this.NodeAttributes.aColor.value.push(new THREE.Color().setRGB(0.5, 0.3, 0.9));
+	this.NodeAttributes.size.value.push(10);
 	
-	var node = new THREE.Mesh(
-		this.node_geometry, 
-		new THREE.MeshShaderMaterial({
-			uniforms: {
-				color: {
-					type: "v3",
-					value: colorVector
-				} 
-			},
-			vertexShader: $("#node-vertexShader").text(),
-			fragmentShader: $("#node-fragmentShader").text()
-	}));
+	// console.log(this.Nodes.nodes[data.id]);
+		
+	return this.Nodes.nodes[data.id];
+	
 	// node.renderDepth = 1;
 	// node.dynamic = true;
 	
 	// node.position.x = 0;
 	// node.position.y = 0;
 	// should be returned by engine?
-	node.scale = new THREE.Vector3(
-		this.options.nodes.scale, 
-		this.options.nodes.scale, 
-		this.options.nodes.scale
-	);
+	// node.scale = new THREE.Vector3(
+	// 	this.options.nodes.scale, 
+	// 	this.options.nodes.scale, 
+	// 	this.options.nodes.scale
+	// );
 	
 	// node.matrixAutoUpdate = false;
-	this.scene.addChild(node);
-	node.data = data;
+	// this.scene.addChild(node);
+	// node.data = data;
 	
-	return node;
+	// return node;
+	
 };
 
 Graph.prototype.lineEdge = function(source, target) {
@@ -397,55 +617,30 @@ GraphGL.prototype.render = function() {
 	// 		};
 	// }
 	
-	var edges = this.Edges.edges;
-	var i = edges.length;
-	while (i--) {
-		var src = edges[i].source;
-		var trg = edges[i].target;
-		
-		var nsrc = this.graph.nodes[src];
-		var ntrg = this.graph.nodes[trg];
-		
-		var isrc = i*2;
-		var itrg = i*2+1;
-		
-		this.Edges.geometry.vertices[isrc].position = nsrc.position;
-		this.Edges.geometry.vertices[isrc].position.z = -1;
-		
-		this.Edges.geometry.vertices[itrg].position = ntrg.position;
-		this.Edges.geometry.vertices[itrg].position.z = -1;	
-			
-		// console.log(nsrc.position, ntrg.position);
-		// console.log(this.Edges.geometry.vertices[isrc], this.Edges.geometry.vertices[itrg]);
-		this.Edges.geometry.__dirtyVertices = true;
-		// this.renderer.render(this.scene, this.camera);
-		// break;
-	}
 	
-	var edges = this.connectedEdges.edges;
-	var i = edges.length;
-	while(i--) {
-		var src = edges[i].source;
-		var trg = edges[i].target;
-		
-		var nsrc = this.graph.nodes[src];
-		var ntrg = this.graph.nodes[trg];
-		
-		// console.log(nsrc, ntrg);
-		var isrc = i*2;
-		var itrg = i*2+1;
-		
-		this.connectedEdges.geometry.vertices[isrc].position = nsrc.position;
-		this.connectedEdges.geometry.vertices[itrg].position = ntrg.position;
-			
-		this.connectedEdges.geometry.__dirtyVertices = true;
-		
-	}
+	// var edges = this.connectedEdges.edges;
+	// var i = edges.length;
+	// while(i--) {
+	// 	var src = edges[i].source;
+	// 	var trg = edges[i].target;
+	// 	
+	// 	var nsrc = this.graph.nodes[src];
+	// 	var ntrg = this.graph.nodes[trg];
+	// 	
+	// 	// console.log(nsrc, ntrg);
+	// 	var isrc = i*2;
+	// 	var itrg = i*2+1;
+	// 	
+	// 	this.connectedEdges.geometry.vertices[isrc].position = nsrc.position;
+	// 	this.connectedEdges.geometry.vertices[itrg].position = ntrg.position;
+	// 		
+	// 	this.connectedEdges.geometry.__dirtyVertices = true;
+	// 	
+	// }
 	
 	// console.log(this.connectedEdges);
 	this.renderer.render(this.scene, this.camera);
-	this.last_render = new_render;
-}
+	}
 
 GraphGL.prototype.start = function(dataUrl) {
 	// Load data and initialize when ready - overload if you have something else then JSON
@@ -459,27 +654,41 @@ GraphGL.prototype.start = function(dataUrl) {
 			console.log("data init");
 			that.graphData = data;
 			that.graph = new Graph();
-			// console.log(data);
+			console.log("srcdata: ", data);
+			// TODO: maybe data a bit more general?
+			
 			for(var n in data.nodes) {
 				that.graph.nodes[n] = that.graph.node.call(that, {
 					id: n,
-					label: data.nodes[n]
+					data: data.nodes[n]
 				});
 			}
+			console.log(that.graph.nodes);
 			
-			if (that.options.edges.type == "arc") {
-				for(var e in data.edges) {
-					var edge = data.edges[e];
-					that.graph.edges[e] = that.graph.arcEdge.call(that, edge.source, edge.target);
-				}
-			} else if (that.options.edges.type == "line") {
-				for(var e in data.edges) {
-					var edge = data.edges[e];
-					that.graph.lineEdge.call(that, edge.source, edge.target);
-				}
-				
-				that.scene.addObject(that.Edges);
-			}
+			// console.log(that.Nodes);
+			// console.log("nodes:", that.Nodes.vertices.length);
+			// console.log("shader: ", that.NodeAttributes.aColor.value.length);
+			// console.log("shader: ", that.NodeAttributes.size.value.length);
+			
+			
+			that.NodeSystem = new THREE.ParticleSystem(that.Nodes, that.NodeShader);
+			that.NodeSystem.dynamic = true;
+			
+			that.scene.addObject(that.NodeSystem);
+			
+			// if (that.options.edges.type == "arc") {
+			// 						for(var e in data.edges) {
+			// 							var edge = data.edges[e];
+			// 							that.graph.edges[e] = that.graph.arcEdge.call(that, edge.source, edge.target);
+			// 						}
+			// 					} else if (that.options.edges.type == "line") {
+			// 						for(var e in data.edges) {
+			// 							var edge = data.edges[e];
+			// 							that.graph.lineEdge.call(that, edge.source, edge.target);
+			// 						}
+			// 						
+			// 						that.scene.addObject(that.Edges);
+			// 					}
 			
 			that.initialize();
 		},
@@ -499,36 +708,8 @@ GraphGL.prototype.stop = function() {
 GraphGL.prototype.initialize = function() {
 	// After initial data has been loaded and models built, we can start calculating layout and rendering
 	console.log("initialize");
-	
-	var that = this;
-	
-	// VALID, but for the time being lets do it in the main thread
-	this.layoutWorker = new Worker(this.options.layout);
-		// this.layoutWorker.postMessage(function() {
-		// 		return that.options.layoutSend.call(that);
-		// }());
-	this.layoutWorker.postMessage(this.graphData);
-	
-	this.layoutWorker.onmessage = function(msg) {
-		// console.log("Returned data:", msg.data);
-		if (msg.data.type == "log")
-			return;
 		
-		that.options.layoutUpdate.call(that, msg.data);
-		that.iterTime = msg.data.iterTime;
-		// console.log(msg.data.boundingBox.bottomLeft.x, msg.data.boundingBox.bottomLeft.y, msg.data.boundingBox.topRight.x, msg.data.boundingBox.topRight.y);
-		
-		if (!that.renderingStarted) {
-			that.renderingStarted = true;
-			that.animate();
-		}
-	};
-		
-	this.layoutWorker.onerror = function(event) {
-	    console.log(event.message + " (" + event.filename + ":" + event.lineno + ")");
-	};
-	
-	return this;
+	this.options.layout.type.call(this);
 }
 
 

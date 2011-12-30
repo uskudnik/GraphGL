@@ -25,7 +25,8 @@ function GraphGL(options) {
 		},
 		edges: {
 			type: "line"
-		}
+		},
+		logging: true;
 	}
 		
 	// merge defaults and specified options options

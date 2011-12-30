@@ -1,8 +1,17 @@
+import argparse
 from xml.etree.ElementTree import ElementTree
 import json
 
+parser = argparse.ArgumentParser(description="Convert GraphML file to JSON")
+parser.add_argument("--static", action="store_true", default=False, required=False, help="Specify whether you would to include static properties from source file")
+
+
+parser.add_argument("filename", metavar="filename", type=str, help="File to convert from GraphML to JSON")
+
+args = parser.parse_args()
+
 tree = ElementTree()
-tree.parse(file("random.graphml", "r"))
+tree.parse(file(args.filename, "r"))
 
 # tree.find("{http://graphml.graphdrawing.org/xmlns}graph/{http://graphml.graphdrawing.org/xmlns}node")
 
@@ -32,17 +41,18 @@ out = {"nodes":{}, "edges":[]}
 print "Nodes: ", len(nodes)
 print "Edges: ", len(edges)
 for node in nodes[:]:
-	# data = node.findall(graphml.get("data"))
-	# print node.find().text
-	out["nodes"][node.get("id")] = {
-		"label": node.find(graphml.get("label")).text,
-		"size": float(node.find(graphml.get("size")).text),
-		"r": node.find(graphml.get("r")).text,
-		"g": node.find(graphml.get("g")).text,
-		"b": node.find(graphml.get("b")).text,
-		"x": float(node.find(graphml.get("x")).text),
-		"y": float(node.find(graphml.get("y")).text)
-	}
+	if not args.static:
+		out["nodes"][node.get("id")] = { "label": getattr(node.find(graphml.get("label")), "text", "") }
+	else:
+		out["nodes"][node.get("id")] = {
+			"label": getattr(node.find(graphml.get("label")), "text", ""),
+			"size": float( getattr(node.find(graphml.get("size")), "text", 0) ),
+			"r": getattr(node.find(graphml.get("r")), "text", 0),
+			"g": getattr(node.find(graphml.get("g")), "text", 0),
+			"b": getattr(node.find(graphml.get("b")), "text", 0),
+			"x": float( getattr(node.find(graphml.get("x")), "text", 0) ),
+			"y": float( getattr(node.find(graphml.get("y")), "text", 0) )
+		}
 
 for edge in edges[:]:
 	if edge.find(graphml.get("edgeid")) is not None:
@@ -52,7 +62,7 @@ for edge in edges[:]:
 	out["edges"].append({"source": edge.get("source"),
 						 "target": edge.get("target"),
 						 "edgeid": edgeid,
-						 "weight": float(edge.find(graphml.get("weight")).text)
+						 "weight": float( getattr(edge.find(graphml.get("weight")), "text", 1) )
 						})
-
-file("random.json", "w").write(json.dumps(out))
+outfilename = args.filename.split(".")[-2]+".json" if len(args.filename.split(".")) >= 2 else args.filename+".json"
+file(outfilename, "w").write(json.dumps(out))
