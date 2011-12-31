@@ -17,13 +17,12 @@ function GraphGL(options) {
 	this.options = {
 		canvas: {},
 		nodes: {
-			color: 0xA0FF00,
-			borderColor: 0xAFFF00, 
-			selectColor: 0xFF0011,
+			color: 0xFF813A,
 			scale: 20
 		},
 		edges: {
-			type: "line"
+			type: "line",
+			color: 0x4193F8,
 		},
 		logging: true,
 	}
@@ -109,7 +108,7 @@ function GraphGL(options) {
 	this.Nodes.nodes = {};
 	
 	// Master geometries	
-	this.Edges = new THREE.Line(new THREE.Geometry(), new THREE.LineBasicMaterial( { color: this.options.nodes.color, opacity: 0.2, linewidth: 1} ), THREE.LinePieces);
+	this.Edges = new THREE.Line(new THREE.Geometry(), new THREE.LineBasicMaterial( { color: this.options.edges.color, opacity: 0.2, linewidth: 1} ), THREE.LinePieces);
 	// this.Edges.renderDepth = 0;
 	this.Edges.edges = [];
 	
@@ -380,16 +379,32 @@ GraphGL.DynamicLayout.layoutUpdate = function(data) {
 	this.NodeAttributes.size.needsUpdate = true;
 }
 
-GraphGL.prototype.addNode = function(data) {
+GraphGL.prototype.addNode = function(nodedata) {
+	var color, size;
+	
 	this.Nodes.geometry.vertices.push(new THREE.Vertex(new THREE.Vector3(0, 0, 0)));
-	this.Nodes.nodes[data.id] = {
-		data: data.data,
+	this.Nodes.nodes[nodedata.id] = {
+		data: nodedata.data,
 		position: new THREE.Vector3(),
 		vertice: this.Nodes.geometry.vertices.length - 1,
 	};
+	if (nodedata.data.color) {
+		color = new THREE.Color().setRGB(nodedata.data.color);
+		
+	} else if (nodedata.data.r && nodedata.data.g && nodedata.data.b) {
+		color = new THREE.Color().setRGB(nodedata.data.r/255, nodedata.data.g/255, nodedata.data.b/255)
+	} else {
+		color = new THREE.Color().setRGB( this.options.nodes.color );
+	}
 	
-	this.NodeAttributes.aColor.value.push(new THREE.Color().setRGB(0.5, 0.3, 0.9));
-	this.NodeAttributes.size.value.push(10);
+	if (nodedata.data.size) {
+		size = nodedata.data.size
+	} else {
+		size = this.options.nodes.size;
+	}
+	
+	this.NodeAttributes.aColor.value.push(color);
+	this.NodeAttributes.size.value.push( size );
 };
 
 GraphGL.prototype.addEdge = function(source, target) {
